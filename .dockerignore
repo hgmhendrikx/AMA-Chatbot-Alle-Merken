@@ -1,0 +1,7 @@
+.env
+config.py
+ingest.py
+__pycache__/
+*.pyc
+.git
+venv/

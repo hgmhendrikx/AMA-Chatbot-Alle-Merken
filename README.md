@@ -1,2 +1,3 @@
-# AMA-Chatbot-Alle-Merken
-Chatbot voor hypotheek voorwaarden voor alle hypotheek merken
+# Acceptatievoorwaarden-Chatbot-Meerdere-Merken
+All 4 brands
+Yada yada

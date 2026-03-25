@@ -1,0 +1,11 @@
+flask
+gunicorn
+langchain
+langchain-openai
+langchain-community
+langchain-text-splitters
+langgraph
+pinecone
+langchain-pinecone
+pypdf
+openai
