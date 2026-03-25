@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hypotheek Acceptatie Assistent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<!-- LEFT SIDEBAR -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <h2>Hypotheek Assistent</h2>
+    <p>Selecteer een geldverstrekker</p>
+  </div>
+  <div class="sidebar-label">Geldverstrekkers</div>
+  <div id="brand-list"></div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <header id="header">
+    <div class="brand-badge" id="header-icon">🏠</div>
+    <div class="header-text">
+      <h1 id="header-title">Selecteer een geldverstrekker</h1>
+      <p id="header-sub">Kies een merk in de zijbalk om te beginnen</p>
+    </div>
+    <button class="pdf-toggle-btn" id="pdf-toggle-btn" onclick="togglePdf()" style="display:none">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+      </svg>
+      Acceptatiegids
+    </button>
+  </header>
+
+  <div class="chat-scroll" id="chat-scroll">
+    <div class="chat-wrap" id="chat">
+      <div class="welcome" id="welcome">
+        <h2>Welkom</h2>
+        <p>Selecteer een geldverstrekker in de zijbalk om vragen te stellen over hun acceptatiebeleid.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-bar">
+    <div class="input-inner">
+      <textarea id="query" placeholder="Selecteer eerst een geldverstrekker..." rows="1" disabled></textarea>
+      <button type="submit" id="send-btn" onclick="sendMessage()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"></line>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT PDF PANEL -->
+<div class="pdf-panel" id="pdf-panel">
+  <div class="pdf-panel-header">
+    <span id="pdf-panel-title">Acceptatiegids</span>
+    <button class="pdf-close-btn" onclick="togglePdf()" title="Sluit PDF">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </div>
+  <div class="pdf-frame-wrap" id="pdf-frame-wrap">
+    <div class="pdf-placeholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+        <polyline points="14 2 14 8 20 8"></polyline>
+      </svg>
+      <p>Stel een vraag om automatisch naar de relevante pagina te springen</p>
+    </div>
+  </div>
+</div>
+
+<!-- Inject brand data for JS, then load app script -->
+<script>
+  const BRANDS = {{ brands_json | safe }};
+</script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
