@@ -132,21 +132,9 @@ function loadPdf(page) {
   const brand = BRANDS[activeBrand];
   if (!brand || !brand.pdf_url) return;
 
-  // Use absolute URL to guarantee correct origin
-  const absoluteUrl = window.location.origin + brand.pdf_url
-    + '#page=' + (page || 1) + '&zoom=75&pagemode=none&navpanes=0&toolbar=1';
-
+  const url  = brand.pdf_url + '#page=' + (page || 1) + '&zoom=75&pagemode=none&navpanes=0&toolbar=1';
   const wrap = document.getElementById('pdf-frame-wrap');
-  // Remove old iframe fully before creating new one
-  wrap.innerHTML = '';
-  const iframe = document.createElement('iframe');
-  iframe.title = brand.name + ' Acceptatiegids';
-  // No sandbox — PDFs are same-origin static files; sandbox restricts the
-  // Chrome PDF viewer and causes chrome-error://chromewebdata/ failures.
-  // External links in the PDF open in a new tab by default in Chrome's viewer.
-  wrap.appendChild(iframe);
-  // Set src after appending so the frame has a proper parent context
-  iframe.src = absoluteUrl;
+  wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids"></iframe>`;
 }
 
 function jumpToPage(page) {
