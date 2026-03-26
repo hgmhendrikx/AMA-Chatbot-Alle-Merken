@@ -247,15 +247,59 @@ function showTyping() {
 }
 function removeTyping() { const t = document.getElementById('typing'); if (t) t.remove(); }
 
+function parseMarkdownTable(block) {
+  const lines = block.trim().split('\n').filter(l => l.trim());
+  if (lines.length < 2) return null;
+  // Check it looks like a table (starts and ends with |)
+  if (!lines[0].trim().startsWith('|')) return null;
+
+  const parseRow = line =>
+    line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+
+  const headers = parseRow(lines[0]);
+  // lines[1] should be the separator row (---|---|...)
+  const isSep = l => /^[\s|:\-]+$/.test(l);
+  if (!isSep(lines[1])) return null;
+
+  const rows = lines.slice(2).map(parseRow);
+
+  const ths = headers.map(h => `<th>${h}</th>`).join('');
+  const trs = rows.map(r =>
+    `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`
+  ).join('');
+
+  return `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
 function formatAnswer(text) {
-  return text
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/^### (.+)$/gm,'<h3>$1</h3>').replace(/^## (.+)$/gm,'<h2>$1</h2>')
-    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>')
-    .replace(/^[•\-] (.+)$/gm,'<li>$1</li>').replace(/(<li>.*<\/li>)/gs,'<ul>$1</ul>')
-    .replace(/^---$/gm,'<hr>')
-    .replace(/(Pagina\s*\d+[^\n<]*)/g, match => `<span class="source-tag">${match}</span>`)
-    .split(/\n\n+/).map(p => p.startsWith('<') ? p : `<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
+  // HTML-escape first
+  const escaped = text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  // Split into blocks and process each
+  const blocks = escaped.split(/\n\n+/);
+  const processed = blocks.map(block => {
+    // Table block
+    const table = parseMarkdownTable(block);
+    if (table) return table;
+
+    // Already an HTML tag
+    if (block.trimStart().startsWith('<')) return block;
+
+    // Apply inline formatting line by line
+    return block
+      .replace(/^### (.+)$/gm,'<h3>$1</h3>')
+      .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g,'<em>$1</em>')
+      .replace(/^[•\-] (.+)$/gm,'<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gs,'<ul>$1</ul>')
+      .replace(/^---$/gm,'<hr>')
+      .replace(/(Pagina\s*\d+[^\n<]*)/g, match => `<span class="source-tag">${match}</span>`)
+      .split('\n').map(line => line.startsWith('<') ? line : `<p>${line}</p>`).join('');
+  });
+
+  return processed.join('');
 }
 
 // ── All-brands message renderer ────────────────────────────
