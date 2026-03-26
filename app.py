@@ -190,10 +190,11 @@ Vraag: {query}
 
 {brand_summaries}
 
-Geef een helder vergelijkend overzicht:
+Herhaal de vraag als startpunt van het antwoord.
+Geef een helder vergelijkend overzicht in tabelvorm:
+- Zet de merken in de kolommen, zet de features in rijen 
 - Vergelijk de merken op de gestelde vraag en markeer overeenkomsten en verschillen.
-- Als iets alleen bij één of enkele merken mogelijk is, benoem dat expliciet en geef daar meer detail over.
-- Gebruik een tabel als dat de vergelijking verduidelijkt.
+Na de tabel:
 - Sluit af met een korte conclusie.
 - Antwoord in dezelfde taal als de vraag."""
 
