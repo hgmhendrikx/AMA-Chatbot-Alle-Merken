@@ -591,3 +591,33 @@ details[open] .chevron { transform: rotate(180deg); }
 .pdf-brand-pick-btn:hover {
   background: rgba(255,255,255,0.12);
 }
+
+/* ── Markdown table rendering ── */
+.table-wrap {
+  overflow-x: auto;
+  margin: 10px 0;
+}
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table-wrap th {
+  background: var(--accent);
+  color: white;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.table-wrap td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.table-wrap tr:last-child td {
+  border-bottom: none;
+}
+.table-wrap tr:nth-child(even) td {
+  background: var(--bg);
+}
