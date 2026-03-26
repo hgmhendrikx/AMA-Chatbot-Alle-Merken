@@ -7,6 +7,23 @@ let currentPage = null;
 
 // ── Build sidebar ──────────────────────────────────────────
 const brandList = document.getElementById('brand-list');
+
+// "Alle merken" item at the top
+const allEl = document.createElement('div');
+allEl.className = 'brand-item';
+allEl.dataset.key = '__all__';
+allEl.innerHTML = `
+  <div class="brand-icon">🔍</div>
+  <span class="brand-name">Alle merken</span>
+  <span class="brand-tooltip">Alle merken</span>`;
+allEl.onclick = () => selectAllBrands();
+brandList.appendChild(allEl);
+
+// Divider
+const divider = document.createElement('div');
+divider.className = 'sidebar-divider';
+brandList.appendChild(divider);
+
 Object.entries(BRANDS).forEach(([key, brand]) => {
   const el = document.createElement('div');
   el.className = 'brand-item';
@@ -19,6 +36,41 @@ Object.entries(BRANDS).forEach(([key, brand]) => {
   brandList.appendChild(el);
 });
 
+// ── Select all brands ──────────────────────────────────────
+function selectAllBrands() {
+  activeBrand = '__all__';
+
+  document.querySelectorAll('.brand-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.key === '__all__');
+  });
+
+  // Neutral dark header for all-brands mode
+  const allColor  = '#2D2D44';
+  const allAccent = '#7B68EE';
+  document.getElementById('header').style.background = allColor;
+  document.documentElement.style.setProperty('--accent',  allColor);
+  document.documentElement.style.setProperty('--accent2', allAccent);
+  document.getElementById('header-icon').textContent    = '🔍';
+  document.getElementById('header-title').textContent   = 'Alle merken';
+  document.getElementById('header-sub').textContent     = 'Vergelijk acceptatiebeleid over alle geldverstrekkers';
+
+  // Hide PDF button — no single PDF to show in all-brands mode
+  document.getElementById('pdf-toggle-btn').style.display = 'none';
+
+  // Close PDF panel if open
+  if (pdfOpen) togglePdf();
+
+  if (window.innerWidth <= 768) {
+    document.getElementById('sidebar').classList.add('collapsed');
+  }
+
+  const ta = document.getElementById('query');
+  ta.disabled = false;
+  ta.placeholder = 'Stel een vergelijkingsvraag over alle merken...';
+  document.getElementById('send-btn').disabled = false;
+  ta.focus();
+}
+
 // ── Select brand ───────────────────────────────────────────
 function selectBrand(key) {
   activeBrand = key;
@@ -26,7 +78,7 @@ function selectBrand(key) {
 
   document.querySelectorAll('.brand-item').forEach(el => {
     const b = BRANDS[el.dataset.key];
-    el.style.setProperty('--brand-accent', b.accent);
+    if (b) el.style.setProperty('--brand-accent', b.accent);
     el.classList.toggle('active', el.dataset.key === key);
   });
 
@@ -76,11 +128,25 @@ function togglePdf() {
 }
 
 function loadPdf(page) {
-  if (!activeBrand) return;
+  if (!activeBrand || activeBrand === '__all__') return;
   const brand = BRANDS[activeBrand];
-  const url   = brand.pdf_url + '#page=' + (page || 1) + '&zoom=75&pagemode=none&navpanes=0&toolbar=1';
-  const wrap  = document.getElementById('pdf-frame-wrap');
-  wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids" sandbox="allow-same-origin allow-scripts allow-popups"></iframe>`;
+  if (!brand || !brand.pdf_url) return;
+
+  // Use absolute URL to guarantee correct origin
+  const absoluteUrl = window.location.origin + brand.pdf_url
+    + '#page=' + (page || 1) + '&zoom=75&pagemode=none&navpanes=0&toolbar=1';
+
+  const wrap = document.getElementById('pdf-frame-wrap');
+  // Remove old iframe fully before creating new one
+  wrap.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.title = brand.name + ' Acceptatiegids';
+  // No sandbox — PDFs are same-origin static files; sandbox restricts the
+  // Chrome PDF viewer and causes chrome-error://chromewebdata/ failures.
+  // External links in the PDF open in a new tab by default in Chrome's viewer.
+  wrap.appendChild(iframe);
+  // Set src after appending so the frame has a proper parent context
+  iframe.src = absoluteUrl;
 }
 
 function jumpToPage(page) {
@@ -179,6 +245,56 @@ function formatAnswer(text) {
     .split(/\n\n+/).map(p => p.startsWith('<') ? p : `<p>${p.replace(/\n/g,'<br>')}</p>`).join('');
 }
 
+// ── All-brands message renderer ────────────────────────────
+function addAllBrandsMessage(data) {
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+
+  const div = document.createElement('div');
+  div.className = 'message ai all-brands-message';
+
+  // Synthesis block
+  let html = `<div class="bubble all-brands-bubble">
+    <div class="all-brands-header">
+      <span class="all-brands-icon">🔍</span>
+      <span class="all-brands-title">Vergelijking — alle merken</span>
+    </div>
+    <div class="all-brands-synthesis">${formatAnswer(data.synthesis)}</div>`;
+
+  // Per-brand detail accordion
+  html += `<div class="brand-details">`;
+  Object.entries(BRANDS).forEach(([key, brand]) => {
+    const result = data.brands[key];
+    if (!result) return;
+    const pages  = result.pages || [];
+    const pageBtns = pages.map(p =>
+      `<button class="page-jump-btn" onclick="selectBrand('${key}'); jumpToPage(${p})">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>Pagina ${p}</button>`
+    ).join('');
+
+    html += `
+      <details class="brand-detail-item">
+        <summary class="brand-detail-summary" style="--brand-color:${brand.color}">
+          <span class="brand-detail-dot" style="background:${brand.color}"></span>
+          <span>${brand.icon} ${brand.name}</span>
+          <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </summary>
+        <div class="brand-detail-body">
+          ${formatAnswer(result.answer)}
+          ${pages.length ? `<div class="page-buttons">${pageBtns}</div>` : ''}
+        </div>
+      </details>`;
+  });
+
+  html += `</div></div>`;
+  div.innerHTML = html;
+  chat.appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
 // ── Send message ───────────────────────────────────────────
 async function sendMessage() {
   if (!activeBrand) return;
@@ -193,15 +309,30 @@ async function sendMessage() {
   showTyping();
 
   try {
-    const res  = await fetch('/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: q, brand: brandAtSend }),
-    });
-    const data = await res.json();
-    removeTyping();
-    const pages = extractPages(data.answer);
-    addMessage('ai', formatAnswer(data.answer), brandAtSend, pages);
+    if (brandAtSend === '__all__') {
+      const res  = await fetch('/ask-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q }),
+      });
+      const data = await res.json();
+      removeTyping();
+      if (data.error) {
+        addMessage('ai', `<em>${data.error}</em>`);
+      } else {
+        addAllBrandsMessage(data);
+      }
+    } else {
+      const res  = await fetch('/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: q, brand: brandAtSend }),
+      });
+      const data = await res.json();
+      removeTyping();
+      const pages = extractPages(data.answer);
+      addMessage('ai', formatAnswer(data.answer), brandAtSend, pages);
+    }
   } catch (err) {
     removeTyping();
     addMessage('ai', '<em>Er is een fout opgetreden. Probeer het opnieuw.</em>');
