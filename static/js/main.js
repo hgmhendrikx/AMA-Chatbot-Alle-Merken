@@ -80,7 +80,7 @@ function loadPdf(page) {
   const brand = BRANDS[activeBrand];
   const url   = brand.pdf_url + '#page=' + (page || 1) + '&zoom=75&pagemode=none&navpanes=0&toolbar=1';
   const wrap  = document.getElementById('pdf-frame-wrap');
-  wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids"></iframe>`;
+  wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids" sandbox="allow-same-origin allow-scripts allow-popups"></iframe>`;
 }
 
 function jumpToPage(page) {
@@ -110,29 +110,47 @@ textarea.addEventListener('keydown', e => {
 // ── Messages ───────────────────────────────────────────────
 const chat = document.getElementById('chat');
 
-function addMessage(role, html, brandKey, page) {
+function extractPages(text) {
+  // Collect all unique page numbers mentioned in the answer text
+  const matches = [...text.matchAll(/[Pp]agina\s*(\d+)/g)];
+  const pages = [...new Set(matches.map(m => parseInt(m[1])))].sort((a, b) => a - b);
+  return pages;
+}
+
+function buildPageButtons(pages) {
+  if (!pages || pages.length === 0) return '';
+  const svgIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+    <polyline points="14 2 14 8 20 8"></polyline>
+  </svg>`;
+  const buttons = pages.map(p =>
+    `<button class="page-jump-btn" onclick="jumpToPage(${p})">${svgIcon} Pagina ${p}</button>`
+  ).join('');
+  return `<div class="page-buttons">${buttons}</div>`;
+}
+
+function addMessage(role, html, brandKey, pages = []) {
   const welcome = document.getElementById('welcome');
   if (welcome) welcome.remove();
 
   const div = document.createElement('div');
   div.className = `message ${role}`;
 
-  let pageBtn = '';
-  if (role === 'ai' && page) {
-    pageBtn = `<button class="page-jump-btn" onclick="jumpToPage(${page})">
-      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-        <polyline points="14 2 14 8 20 8"></polyline>
-      </svg>
-      Bekijk pagina ${page}
-    </button>`;
+  let pageBtns = '';
+  if (role === 'ai') {
+    pageBtns = buildPageButtons(pages);
+
+    // Auto-jump to first referenced page if PDF is open
+    if (pages.length > 0 && pdfOpen) {
+      jumpToPage(pages[0]);
+    }
   }
 
   if (role === 'ai' && brandKey) {
     const b = BRANDS[brandKey];
     div.innerHTML = `
       <div class="brand-tag"><span style="background:${b.color}"></span>${b.name}</div>
-      <div class="bubble">${html}${pageBtn}</div>`;
+      <div class="bubble">${html}${pageBtns}</div>`;
   } else {
     div.innerHTML = `<div class="bubble">${html}</div>`;
   }
@@ -182,12 +200,8 @@ async function sendMessage() {
     });
     const data = await res.json();
     removeTyping();
-    addMessage('ai', formatAnswer(data.answer), brandAtSend, data.page);
-
-    // Auto-jump to page if PDF panel is already open
-    if (data.page && pdfOpen) {
-      jumpToPage(data.page);
-    }
+    const pages = extractPages(data.answer);
+    addMessage('ai', formatAnswer(data.answer), brandAtSend, pages);
   } catch (err) {
     removeTyping();
     addMessage('ai', '<em>Er is een fout opgetreden. Probeer het opnieuw.</em>');
