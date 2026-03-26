@@ -94,25 +94,22 @@ def ask():
                 if hasattr(last, "artifact") and last.artifact:
                     source_docs = last.artifact
 
-        # Extract first page number from source docs or answer text
-        page_number = None
+        # Extract all page numbers from source docs and answer text
+        pages = []
         if source_docs:
-            pages = []
             for doc in source_docs:
                 p = doc.metadata.get("page")
                 if p is not None:
                     pages.append(int(p) + 1)  # PyPDF is 0-indexed
-            if pages:
-                page_number = min(pages)
-        if not page_number:
+        if not pages:
             matches = re.findall(r'[Pp]agina\s*(\d+)', final_answer)
-            if matches:
-                page_number = min(int(p) for p in matches)
+            pages = [int(p) for p in matches]
+        pages = sorted(set(pages))
 
-        print(f"[DONE] Returning answer ({len(final_answer)} chars), page={page_number}")
+        print(f"[DONE] Returning answer ({len(final_answer)} chars), pages={pages}")
         return jsonify({
             "answer": final_answer or "Geen antwoord ontvangen.",
-            "page":   page_number
+            "pages":  pages,
         })
 
     except Exception as e:
@@ -190,11 +187,10 @@ Vraag: {query}
 
 {brand_summaries}
 
-Herhaal de vraag als startpunt van het antwoord.
-Geef een helder vergelijkend overzicht in tabelvorm:
-- Zet de merken in de kolommen, zet de features in rijen 
+Geef een helder vergelijkend overzicht:
 - Vergelijk de merken op de gestelde vraag en markeer overeenkomsten en verschillen.
-Na de tabel:
+- Als iets alleen bij één of enkele merken mogelijk is, benoem dat expliciet en geef daar meer detail over.
+- Gebruik een tabel als dat de vergelijking verduidelijkt.
 - Sluit af met een korte conclusie.
 - Antwoord in dezelfde taal als de vraag."""
 
