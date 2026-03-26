@@ -278,7 +278,16 @@ header p { font-size: 11px; opacity: 0.7; margin-top: 1px; }
   border-radius: 50%;
 }
 
-/* Page jump button */
+/* Page jump buttons */
+.page-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
 .page-jump-btn {
   display: inline-flex; align-items: center; gap: 6px;
   margin-top: 10px;
