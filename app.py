@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template
 import os
 import re
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain.chat_models import init_chat_model
 from langchain_openai import OpenAIEmbeddings
 from langchain_pinecone import PineconeVectorStore
@@ -117,6 +118,107 @@ def ask():
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"answer": f"Fout: {str(e)}"}), 500
+
+
+def run_brand_agent(brand_key: str, query: str) -> dict:
+    """Run a single brand agent and return its answer and pages."""
+    agent = agent_cache[brand_key]
+    final_answer = ""
+    source_docs  = []
+
+    for event in agent.stream(
+        {"messages": [{"role": "user", "content": query}]},
+        stream_mode="values",
+    ):
+        last = event["messages"][-1]
+        if hasattr(last, "content") and last.content and getattr(last, "type", "") == "ai":
+            if not getattr(last, "tool_calls", None):
+                final_answer = last.content
+        if hasattr(last, "type") and last.type == "tool":
+            if hasattr(last, "artifact") and last.artifact:
+                source_docs = last.artifact
+
+    pages = []
+    for doc in source_docs:
+        p = doc.metadata.get("page")
+        if p is not None:
+            pages.append(int(p) + 1)
+    if not pages:
+        matches = re.findall(r'[Pp]agina\s*(\d+)', final_answer)
+        pages = [int(p) for p in matches]
+    pages = sorted(set(pages))
+
+    return {
+        "brand_key": brand_key,
+        "answer":    final_answer or "Geen informatie gevonden.",
+        "pages":     pages,
+    }
+
+
+@app.route("/ask-all", methods=["POST"])
+def ask_all():
+    try:
+        data  = request.get_json(force=True)
+        query = (data or {}).get("query", "").strip()
+
+        if not query:
+            return jsonify({"error": "Geen vraag ontvangen."}), 400
+
+        print(f"\n[ASK-ALL] Query={query}")
+
+        # Query all brands in parallel
+        brand_results = {}
+        with ThreadPoolExecutor(max_workers=len(BRANDS)) as executor:
+            futures = {
+                executor.submit(run_brand_agent, key, query): key
+                for key in BRANDS
+            }
+            for future in as_completed(futures):
+                result = future.result()
+                brand_results[result["brand_key"]] = result
+
+        # Build synthesis prompt
+        brand_summaries = "\n\n".join(
+            f"## {BRANDS[key]['name']}\n{brand_results[key]['answer']}"
+            for key in BRANDS
+            if key in brand_results
+        )
+
+        synthesis_prompt = f"""Je bent een expert hypotheekadviseur. Hieronder staan de antwoorden van 4 Nederlandse hypotheekverstrekkers op de volgende vraag:
+
+Vraag: {query}
+
+{brand_summaries}
+
+Geef een helder vergelijkend overzicht:
+- Vergelijk de merken op de gestelde vraag en markeer overeenkomsten en verschillen.
+- Als iets alleen bij één of enkele merken mogelijk is, benoem dat expliciet en geef daar meer detail over.
+- Gebruik een tabel als dat de vergelijking verduidelijkt.
+- Sluit af met een korte conclusie.
+- Antwoord in dezelfde taal als de vraag."""
+
+        synthesis_response = model.invoke([{"role": "user", "content": synthesis_prompt}])
+        synthesis = synthesis_response.content
+
+        # Return per-brand results and the synthesis
+        brands_out = {
+            key: {
+                "answer": brand_results[key]["answer"],
+                "pages":  brand_results[key]["pages"],
+            }
+            for key in BRANDS
+            if key in brand_results
+        }
+
+        print(f"[DONE] ask-all synthesis ({len(synthesis)} chars)")
+        return jsonify({
+            "synthesis": synthesis,
+            "brands":    brands_out,
+        })
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": f"Fout: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
