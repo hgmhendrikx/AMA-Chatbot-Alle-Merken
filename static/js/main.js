@@ -1,9 +1,25 @@
 /* Hypotheek Acceptatie Assistent — main.js
    BRANDS is injected by the template as a global variable. */
 
-let activeBrand = null;
-let pdfOpen     = false;
-let currentPage = null;
+let activeBrand    = null;
+let activePdfBrand = null;  // tracks which brand PDF is shown (relevant in all-brands mode)
+let pdfOpen        = false;
+let currentPage    = null;
+
+// ── All-brands PDF picker ──────────────────────────────────
+function showAllBrandsPdfPicker() {
+  const wrap = document.getElementById('pdf-frame-wrap');
+  const buttons = Object.entries(BRANDS).map(([key, brand]) => `
+    <button class="pdf-brand-pick-btn" onclick="loadPdf(1, '${key}')" style="--brand-color:${brand.color}">
+      <span>${brand.icon}</span>
+      <span>${brand.name}</span>
+    </button>`).join('');
+  wrap.innerHTML = `
+    <div class="pdf-brand-picker">
+      <p>Kies een acceptatiegids om te bekijken:</p>
+      ${buttons}
+    </div>`;
+}
 
 // ── Build sidebar ──────────────────────────────────────────
 const brandList = document.getElementById('brand-list');
@@ -54,11 +70,13 @@ function selectAllBrands() {
   document.getElementById('header-title').textContent   = 'Alle merken';
   document.getElementById('header-sub').textContent     = 'Vergelijk acceptatiebeleid over alle geldverstrekkers';
 
-  // Hide PDF button — no single PDF to show in all-brands mode
-  document.getElementById('pdf-toggle-btn').style.display = 'none';
+  // Show PDF button — in all-brands mode it opens a brand picker
+  const pdfBtn = document.getElementById('pdf-toggle-btn');
+  pdfBtn.style.display = 'flex';
+  pdfBtn.classList.remove('active');
 
-  // Close PDF panel if open
-  if (pdfOpen) togglePdf();
+  // Reset PDF panel to brand-picker mode
+  showAllBrandsPdfPicker();
 
   if (window.innerWidth <= 768) {
     document.getElementById('sidebar').classList.add('collapsed');
@@ -122,32 +140,39 @@ function togglePdf() {
   sidebar.classList.toggle('collapsed', pdfOpen);
   btn.classList.toggle('active', pdfOpen);
 
-  if (pdfOpen && activeBrand) {
-    loadPdf(currentPage || 1);
+  if (pdfOpen) {
+    if (activeBrand === '__all__') {
+      showAllBrandsPdfPicker();
+    } else {
+      loadPdf(currentPage || 1);
+    }
   }
 }
 
-function loadPdf(page) {
-  if (!activeBrand || activeBrand === '__all__') return;
-  const brand = BRANDS[activeBrand];
+function loadPdf(page, brandKey) {
+  // In all-brands mode, use the explicitly passed brandKey or fall back to activePdfBrand
+  const key = brandKey || (activeBrand !== '__all__' ? activeBrand : activePdfBrand);
+  if (!key) return;
+  const brand = BRANDS[key];
   if (!brand || !brand.pdf_url) return;
 
+  activePdfBrand = key;
   const url  = brand.pdf_url + '#page=' + (page || 1) + '&zoom=75&pagemode=none&navpanes=0&toolbar=1';
   const wrap = document.getElementById('pdf-frame-wrap');
   wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids"></iframe>`;
+  document.getElementById('pdf-panel-title').textContent = brand.name + ' — Acceptatiegids';
 }
 
-function jumpToPage(page) {
+function jumpToPage(page, brandKey) {
   currentPage = page;
   if (pdfOpen) {
-    loadPdf(page);
+    loadPdf(page, brandKey);
   } else {
-    // Auto-open panel and jump
     pdfOpen = true;
     document.getElementById('pdf-panel').classList.add('open');
     document.getElementById('sidebar').classList.add('collapsed');
     document.getElementById('pdf-toggle-btn').classList.add('active');
-    loadPdf(page);
+    loadPdf(page, brandKey);
   }
 }
 
@@ -256,7 +281,7 @@ function addAllBrandsMessage(data) {
     if (!result) return;
     const pages  = result.pages || [];
     const pageBtns = pages.map(p =>
-      `<button class="page-jump-btn" onclick="selectBrand('${key}'); jumpToPage(${p})">
+      `<button class="page-jump-btn" onclick="jumpToPage(${p}, '${key}')">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
@@ -318,7 +343,7 @@ async function sendMessage() {
       });
       const data = await res.json();
       removeTyping();
-      const pages = extractPages(data.answer);
+      const pages = data.pages && data.pages.length ? data.pages : extractPages(data.answer);
       addMessage('ai', formatAnswer(data.answer), brandAtSend, pages);
     }
   } catch (err) {
