@@ -80,7 +80,7 @@ function loadPdf(page) {
   const brand = BRANDS[activeBrand];
   const url   = brand.pdf_url + '#page=' + (page || 1) + '&zoom=75&pagemode=none&navpanes=0&toolbar=1';
   const wrap  = document.getElementById('pdf-frame-wrap');
-  wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids"></iframe>`;
+  wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids" sandbox="allow-same-origin allow-scripts allow-popups"></iframe>`;
 }
 
 function jumpToPage(page) {
@@ -129,7 +129,7 @@ function buildPageButtons(pages) {
   return `<div class="page-buttons">${buttons}</div>`;
 }
 
-function addMessage(role, html, brandKey) {
+function addMessage(role, html, brandKey, pages = []) {
   const welcome = document.getElementById('welcome');
   if (welcome) welcome.remove();
 
@@ -138,8 +138,6 @@ function addMessage(role, html, brandKey) {
 
   let pageBtns = '';
   if (role === 'ai') {
-    // Extract pages from the raw html (before HTML escaping, page refs survive formatAnswer)
-    const pages = extractPages(html);
     pageBtns = buildPageButtons(pages);
 
     // Auto-jump to first referenced page if PDF is open
@@ -202,7 +200,8 @@ async function sendMessage() {
     });
     const data = await res.json();
     removeTyping();
-    addMessage('ai', formatAnswer(data.answer), brandAtSend);
+    const pages = extractPages(data.answer);
+    addMessage('ai', formatAnswer(data.answer), brandAtSend, pages);
   } catch (err) {
     removeTyping();
     addMessage('ai', '<em>Er is een fout opgetreden. Probeer het opnieuw.</em>');
