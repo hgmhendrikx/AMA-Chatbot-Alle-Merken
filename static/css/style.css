@@ -464,3 +464,160 @@ button[type=submit]:disabled { background: var(--border); cursor: not-allowed; }
   0%,60%,100% { transform:translateY(0); }
   30% { transform:translateY(-6px); }
 }
+
+/* ── Sidebar divider ── */
+.sidebar-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+  margin: 8px 14px 12px;
+}
+
+/* ═══════════════════════════════════════
+   ALL-BRANDS MESSAGE
+═══════════════════════════════════════ */
+.all-brands-bubble {
+  max-width: 95%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+  box-shadow: var(--shadow);
+  padding: 0;
+  overflow: hidden;
+}
+
+.all-brands-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #2D2D44;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+.all-brands-icon { font-size: 16px; }
+.all-brands-title { font-family: 'DM Serif Display', serif; font-size: 15px; font-weight: 400; }
+
+.all-brands-synthesis {
+  padding: 16px 16px 12px;
+  font-size: 14px;
+  line-height: 1.65;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Per-brand accordion */
+.brand-details { display: flex; flex-direction: column; }
+
+.brand-detail-item {
+  border-bottom: 1px solid var(--border);
+}
+.brand-detail-item:last-child { border-bottom: none; }
+
+.brand-detail-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  list-style: none;
+  user-select: none;
+  transition: background 0.15s;
+}
+.brand-detail-summary::-webkit-details-marker { display: none; }
+.brand-detail-summary:hover { background: var(--bg); }
+
+.brand-detail-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: transform 0.2s;
+}
+details[open] .chevron { transform: rotate(180deg); }
+
+.brand-detail-body {
+  padding: 12px 16px 14px 34px;
+  font-size: 13px;
+  line-height: 1.65;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+.brand-detail-body p  { margin: 6px 0; }
+.brand-detail-body ul { margin: 6px 0 6px 18px; }
+.brand-detail-body li { margin: 2px 0; }
+
+/* ── PDF brand picker (all-brands mode) ── */
+.pdf-brand-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 12px;
+  padding: 32px 24px;
+}
+.pdf-brand-picker p {
+  font-size: 12px;
+  color: rgba(255,255,255,0.4);
+  text-align: center;
+  margin-bottom: 4px;
+}
+.pdf-brand-pick-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 260px;
+  padding: 10px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-left: 3px solid var(--brand-color, #40916C);
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.pdf-brand-pick-btn:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+/* ── Markdown table rendering ── */
+.table-wrap {
+  overflow-x: auto;
+  margin: 10px 0;
+}
+.table-wrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table-wrap th {
+  background: var(--accent);
+  color: white;
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.table-wrap td {
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.table-wrap tr:last-child td {
+  border-bottom: none;
+}
+.table-wrap tr:nth-child(even) td {
+  background: var(--bg);
+}
