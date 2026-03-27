@@ -16,7 +16,8 @@ INDEX_NAME = "hypotheek-docs"
 
 # ── Model & Vector Store ──────────────────────────────────────
 print("Connecting to model and Pinecone...")
-model        = init_chat_model("gpt-4.1")
+#model        = init_chat_model("gpt-4.1")
+model        = init_chat_model("gpt-5.4-nano")
 embeddings   = OpenAIEmbeddings(model="text-embedding-3-large")
 vector_store = PineconeVectorStore(index_name=INDEX_NAME, embedding=embeddings)
 print("Ready.")
