@@ -159,7 +159,7 @@ function loadPdf(page, brandKey) {
   activePdfBrand = key;
   const url  = brand.pdf_url + '#page=' + (page || 1) + '&zoom=75&pagemode=none&navpanes=0&toolbar=1';
   const wrap = document.getElementById('pdf-frame-wrap');
-  wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids"></iframe>`;
+  wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids" target="_blank"></iframe>`;
   document.getElementById('pdf-panel-title').textContent = brand.name + ' — Acceptatiegids';
 }
 
