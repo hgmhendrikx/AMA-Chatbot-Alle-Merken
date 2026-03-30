@@ -304,6 +304,96 @@ function formatAnswer(text) {
   return processed.join('');
 }
 
+// ── Export all-brands response to PDF ─────────────────────
+function exportAllBrandsToPdf(query, synthesisHtml, brandsData) {
+  const brandRows = Object.entries(BRANDS).map(([key, brand]) => {
+    const result = brandsData[key];
+    if (!result) return '';
+    return `
+      <div class="brand-section">
+        <div class="brand-section-header" style="border-left: 4px solid ${brand.color}">
+          <span>${brand.icon} ${brand.name}</span>
+        </div>
+        <div class="brand-section-body">${formatAnswer(result.answer)}</div>
+      </div>`;
+  }).join('');
+
+  const now = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const printHtml = `<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <title>Hypotheek Vergelijking — ${now}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; font-size: 13px; color: #1A1A1A; background: white; padding: 40px 48px; }
+
+    .doc-header { border-bottom: 2px solid #1B4332; padding-bottom: 16px; margin-bottom: 28px; }
+    .doc-header h1 { font-family: 'DM Serif Display', serif; font-size: 22px; font-weight: 400; color: #1B4332; }
+    .doc-header .meta { font-size: 11px; color: #6B7280; margin-top: 6px; }
+    .doc-header .question { font-size: 14px; color: #1A1A1A; margin-top: 10px; padding: 10px 14px; background: #F7F5F0; border-radius: 6px; }
+
+    .section-title { font-family: 'DM Serif Display', serif; font-size: 16px; font-weight: 400; color: #1B4332; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #E8E4DC; }
+
+    .synthesis { line-height: 1.7; }
+    .synthesis h2 { font-family: 'DM Serif Display', serif; font-size: 15px; font-weight: 400; color: #1B4332; margin: 14px 0 6px; }
+    .synthesis h3 { font-size: 13px; font-weight: 600; color: #1B4332; margin: 12px 0 5px; }
+    .synthesis p  { margin: 6px 0; }
+    .synthesis ul { margin: 6px 0 6px 18px; }
+    .synthesis li { margin: 3px 0; }
+    .synthesis strong { color: #1B4332; font-weight: 600; }
+    .synthesis table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
+    .synthesis th { background: #1B4332; color: white; padding: 7px 10px; text-align: left; font-weight: 600; }
+    .synthesis td { padding: 6px 10px; border-bottom: 1px solid #E8E4DC; vertical-align: top; }
+    .synthesis tr:nth-child(even) td { background: #F7F5F0; }
+    .synthesis .table-wrap { overflow: visible; }
+
+    .brand-section { margin-bottom: 18px; page-break-inside: avoid; }
+    .brand-section-header { padding: 8px 12px; background: #F7F5F0; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+    .brand-section-body { padding: 0 4px; line-height: 1.65; }
+    .brand-section-body p  { margin: 5px 0; }
+    .brand-section-body ul { margin: 5px 0 5px 18px; }
+    .brand-section-body li { margin: 2px 0; }
+    .brand-section-body strong { font-weight: 600; }
+    .source-tag { display: none; }
+
+    .doc-footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #E8E4DC; font-size: 10px; color: #6B7280; display: flex; justify-content: space-between; }
+
+    @media print {
+      body { padding: 0; }
+      @page { margin: 20mm 18mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="doc-header">
+    <h1>Hypotheek Acceptatie Vergelijking</h1>
+    <div class="meta">Gegenereerd op ${now} · Hypotheek Acceptatie Assistent</div>
+    <div class="question"><strong>Vraag:</strong> ${query}</div>
+  </div>
+
+  <div class="section-title">Vergelijkend overzicht</div>
+  <div class="synthesis">${synthesisHtml}</div>
+
+  <div class="section-title">Per geldverstrekker</div>
+  ${brandRows}
+
+  <div class="doc-footer">
+    <span>Hypotheek Acceptatie Assistent</span>
+    <span>${now}</span>
+  </div>
+
+  <script>window.onload = () => window.print();<\/script>
+</body>
+</html>`;
+
+  const blob = new Blob([printHtml], { type: 'text/html' });
+  const url  = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
 // ── All-brands message renderer ────────────────────────────
 function addAllBrandsMessage(data) {
   const welcome = document.getElementById('welcome');
@@ -312,13 +402,25 @@ function addAllBrandsMessage(data) {
   const div = document.createElement('div');
   div.className = 'message ai all-brands-message';
 
+  // Store for export
+  const synthesisHtml = formatAnswer(data.synthesis);
+  const exportId = 'export-' + Date.now();
+
   // Synthesis block
   let html = `<div class="bubble all-brands-bubble">
     <div class="all-brands-header">
       <span class="all-brands-icon">🔍</span>
       <span class="all-brands-title">Vergelijking — alle merken</span>
+      <button class="export-pdf-btn" id="${exportId}">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Exporteer naar PDF
+      </button>
     </div>
-    <div class="all-brands-synthesis">${formatAnswer(data.synthesis)}</div>`;
+    <div class="all-brands-synthesis">${synthesisHtml}</div>`;
 
   // Per-brand detail accordion
   html += `<div class="brand-details">`;
@@ -352,6 +454,15 @@ function addAllBrandsMessage(data) {
   div.innerHTML = html;
   chat.appendChild(div);
   div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+
+  // Wire export button now that it's in the DOM
+  const exportBtn = document.getElementById(exportId);
+  if (exportBtn) {
+    // capture query from the preceding user message
+    const userMessages = chat.querySelectorAll('.message.user .bubble');
+    const lastQuery = userMessages.length ? userMessages[userMessages.length - 1].textContent : '';
+    exportBtn.onclick = () => exportAllBrandsToPdf(lastQuery, synthesisHtml, data.brands);
+  }
 }
 
 // ── Send message ───────────────────────────────────────────
