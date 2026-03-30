@@ -157,9 +157,11 @@ function loadPdf(page, brandKey) {
   if (!brand || !brand.pdf_url) return;
 
   activePdfBrand = key;
-  const url  = brand.pdf_url + '#page=' + (page || 1) + '&zoom=75&pagemode=none&navpanes=0&toolbar=1';
+  // Use PDF.js viewer — gives full control over link behaviour (links open in new tab)
+  const encoded = encodeURIComponent(window.location.origin + brand.pdf_url);
+  const viewerUrl = `/static/pdfjs/web/viewer.html?file=${encoded}#page=${page || 1}`;
   const wrap = document.getElementById('pdf-frame-wrap');
-  wrap.innerHTML = `<iframe src="${url}" title="${brand.name} Acceptatiegids"></iframe>`;
+  wrap.innerHTML = `<iframe src="${viewerUrl}" title="${brand.name} Acceptatiegids"></iframe>`;
   document.getElementById('pdf-panel-title').textContent = brand.name + ' — Acceptatiegids';
 }
 

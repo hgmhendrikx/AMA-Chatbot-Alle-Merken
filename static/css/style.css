@@ -223,7 +223,7 @@ header p { font-size: 11px; opacity: 0.7; margin-top: 1px; }
   scrollbar-color: var(--border) transparent;
 }
 .chat-wrap {
-  max-width: 720px;
+  max-width: 1100px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -343,7 +343,7 @@ header p { font-size: 11px; opacity: 0.7; margin-top: 1px; }
   padding: 16px 20px 24px;
 }
 .input-inner {
-  max-width: 720px; margin: 0 auto;
+  max-width: 1100px; margin: 0 auto;
   display: flex; gap: 10px;
   background: var(--surface);
   border: 1.5px solid var(--border);
