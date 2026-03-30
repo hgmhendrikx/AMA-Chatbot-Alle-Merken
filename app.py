@@ -191,7 +191,7 @@ Vraag: {query}
 
 {brand_summaries}
 
-Geef nooit advies. Jouw enige rol is om informatie uit de {brand_summary} te halen en gestructureerd weer te geven.
+Geef nooit advies. Jouw enige rol is om informatie uit de bronnen te halen en gestructureerd weer te geven.
 Indien advies wordt gevraagd dan vriendelijk weigeren en doorverwijzen naar een professional.
 
 Herhaal de vraag als startpunt van het antwoord.
