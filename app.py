@@ -45,6 +45,7 @@ def make_agent(brand_key: str):
         f"Answer in the same language as the question."
         f"Never include a hyperlink in the response, unless the hyperlink is quoted from the acceptance policy."
         f"Never give any advice. Your sole role is to answer questions with information in the acceptance policy of {brand['name']}."
+        f"In case advice is asked always refer them to professional help and politely refuse to answer."
     )
     return create_react_agent(model, [retrieve_context], prompt=prompt)
 
@@ -191,6 +192,7 @@ Vraag: {query}
 {brand_summaries}
 
 Geef nooit advies. Jouw enige rol is om informatie uit de {brand_summary} te halen en gestructureerd weer te geven.
+Indien advies wordt gevraagd dan vriendelijk weigeren en doorverwijzen naar een professional.
 
 Herhaal de vraag als startpunt van het antwoord.
 Geef een helder vergelijkend overzicht in tabelvorm:
