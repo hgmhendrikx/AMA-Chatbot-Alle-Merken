@@ -621,3 +621,23 @@ details[open] .chevron { transform: rotate(180deg); }
 .table-wrap tr:nth-child(even) td {
   background: var(--bg);
 }
+
+/* ── Export to PDF button ── */
+.export-pdf-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 7px;
+  color: white;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.export-pdf-btn:hover { background: rgba(255,255,255,0.28); }
