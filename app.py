@@ -43,6 +43,8 @@ def make_agent(brand_key: str):
         f"a Dutch mortgage provider. Use the tool to answer user queries accurately. "
         f"Always cite the relevant section and page number from the policy. "
         f"Answer in the same language as the question."
+        f"Never include a hyperlink in the response, unless the hyperlink is quoted from the acceptance policy."
+        f"Never give any advice. Your sole role is to answer questions with information in the acceptance policy of {brand['name']}."
     )
     return create_react_agent(model, [retrieve_context], prompt=prompt)
 
@@ -188,10 +190,13 @@ Vraag: {query}
 
 {brand_summaries}
 
+Geef nooit advies. Jouw enige rol is om informatie uit de {brand_summary} te halen en gestructureerd weer te geven.
+
 Herhaal de vraag als startpunt van het antwoord.
 Geef een helder vergelijkend overzicht in tabelvorm:
 - Zet de merken in de kolommen, zet de features in rijen 
 - Vergelijk de merken op de gestelde vraag en markeer overeenkomsten en verschillen.
+- Zet nooit hyperlinks in de reactie, tenzij het een directe quote is
 Na de tabel:
 - Sluit af met een korte conclusie.
 - Antwoord in dezelfde taal als de vraag."""
