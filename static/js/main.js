@@ -193,9 +193,15 @@ const chat = document.getElementById('chat');
 
 function extractPages(text) {
   // Collect all unique page numbers mentioned in the answer text
-  const matches = [...text.matchAll(/\(pagina\s*(\d+)\)/gi)];
-  const pages = [...new Set(matches.map(m => parseInt(m[1])))].sort((a, b) => a - b);
-  return pages;
+  // Match (pagina 21), (pagina 21 en pagina 30), (pagina 21, 22 en 30), etc.
+  const pages = [];
+  const citations = [...text.matchAll(/\(([^)]*pagina[^)]+)\)/gi)];
+  citations.forEach(m => {
+    const nums = [...m[1].matchAll(/\d+/g)].map(n => parseInt(n[0]));
+    nums.forEach(n => pages.push(n));
+  });
+  const uniquePages = [...new Set(pages)].sort((a, b) => a - b);
+  return uniquePages;
 }
 
 function buildPageButtons(pages) {
@@ -297,7 +303,7 @@ function formatAnswer(text) {
       .replace(/^[•\-] (.+)$/gm,'<li>$1</li>')
       .replace(/(<li>.*<\/li>)/gs,'<ul>$1</ul>')
       .replace(/^---$/gm,'<hr>')
-      .replace(/(\(pagina\s*\d+\))/gi, match => `<span class="source-tag">${match}</span>`)
+      .replace(/(\([^)]*pagina[^)]+\))/gi, match => `<span class="source-tag">${match}</span>`)
       .split('\n').map(line => line.startsWith('<') ? line : `<p>${line}</p>`).join('');
   });
 
