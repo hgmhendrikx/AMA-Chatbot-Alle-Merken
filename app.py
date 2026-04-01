@@ -113,7 +113,10 @@ def _extract_pages(source_docs, final_answer) -> list:
     # These match the printed page numbers visible in the PDF, which is what
     # the user sees. Pinecone metadata pages are physical (0-indexed) positions
     # in the file and include front matter, so they don't match printed numbers.
-    pages = {int(p) for p in re.findall(r'\(pagina\s*(\d+)\)', final_answer, re.IGNORECASE)}
+    # Match (pagina 21), (pagina 21 en pagina 30), (pagina 21, 22 en 30), etc.
+    pages = set()
+    for citation in re.findall(r'\(([^)]*pagina[^)]+)\)', final_answer, re.IGNORECASE):
+        pages.update(int(p) for p in re.findall(r'\d+', citation))
     return sorted(pages)
 
 
