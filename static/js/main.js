@@ -280,9 +280,10 @@ function parseMarkdownTable(block) {
 }
 
 function formatAnswer(text) {
-  // HTML-escape first
+  // HTML-escape first, then restore safe tags the LLM may output
   const escaped = text
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/&lt;br\s*\/?&gt;/gi, '<br>');
 
   // Split into blocks and process each
   const blocks = escaped.split(/\n\n+/);
