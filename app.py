@@ -40,7 +40,10 @@ def make_agent(brand_key: str):
     prompt = (
         f"You have access to a tool that retrieves context from the acceptance policy of {brand['name']}, "
         f"a Dutch mortgage provider. Use the tool to answer user queries accurately. "
-        f"Always cite the relevant section and page number from the policy. "
+        f"Always cite your sources using exactly this format: (pagina X) — where X is the page number. "
+        f"Use lowercase 'pagina' followed by a space and the number, always in parentheses. "
+        f"Example: 'De maximale LTV is 100% (pagina 22).' "
+        f"Never use abbreviations like 'pag.' or 'p.' or footnote markers. "
         f"Answer in the same language as the question."
     )
     return create_react_agent(model, [retrieve_context], prompt=prompt)
@@ -106,29 +109,11 @@ def ask():
 
 
 def _extract_pages(source_docs, final_answer) -> list:
-    pages = set()
-
-    # Source 1: Pinecone/PyPDF metadata — 0-indexed, so add +1
-    for doc in source_docs:
-        p = doc.metadata.get("page")
-        if p is not None:
-            pages.add(int(p) + 1)
-
-    # Source 2: page numbers the LLM explicitly cited in its answer text.
-    # These are already human-readable (1-indexed) — no offset needed.
-    text_pages = {int(p) for p in re.findall(r'[Pp]agina\s*(\d+)', final_answer)}
-
-    # Merge: keep text pages that are close to (within 2) a metadata page,
-    # OR keep all text pages when no metadata pages were found.
-    # This prevents stray numbers in the text from generating wrong buttons
-    # while still catching pages the LLM cited that metadata missed.
-    if pages:
-        for tp in text_pages:
-            if any(abs(tp - mp) <= 2 for mp in pages):
-                pages.add(tp)
-    else:
-        pages = text_pages
-
+    # Use ONLY the page numbers the LLM explicitly cites in its answer text.
+    # These match the printed page numbers visible in the PDF, which is what
+    # the user sees. Pinecone metadata pages are physical (0-indexed) positions
+    # in the file and include front matter, so they don't match printed numbers.
+    pages = {int(p) for p in re.findall(r'\(pagina\s*(\d+)\)', final_answer, re.IGNORECASE)}
     return sorted(pages)
 
 
