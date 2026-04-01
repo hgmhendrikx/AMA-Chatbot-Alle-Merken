@@ -237,7 +237,7 @@ function addMessage(role, html, brandKey, pages = []) {
   }
 
   chat.appendChild(div);
-  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  div.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function showTyping() {
@@ -394,6 +394,38 @@ function exportAllBrandsToPdf(query, synthesisHtml, brandsData) {
   window.open(url, '_blank');
 }
 
+// ── Compose e-mail from all-brands response ───────────────
+function composeAllBrandsEmail(query, brandsData) {
+  const now = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  const stripHtml = html => {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = html;
+    return tmp.innerText || tmp.textContent || '';
+  };
+
+  const subject = encodeURIComponent('Hypotheek vergelijking — ' + query.substring(0, 60));
+
+  let body = 'Hypotheek Acceptatie Vergelijking\n';
+  body += 'Gegenereerd op ' + now + '\n';
+  body += '\nVraag: ' + query + '\n';
+  body += '\n' + '='.repeat(60) + '\n\n';
+
+  Object.entries(BRANDS).forEach(([key, brand]) => {
+    const result = brandsData[key];
+    if (!result) return;
+    body += brand.name.toUpperCase() + '\n';
+    body += '-'.repeat(40) + '\n';
+    body += stripHtml(formatAnswer(result.answer));
+    body += '\n\n';
+  });
+
+  body += '='.repeat(60) + '\n';
+  body += 'Hypotheek Acceptatie Assistent';
+
+  window.location.href = 'mailto:?subject=' + subject + '&body=' + encodeURIComponent(body);
+}
+
 // ── All-brands message renderer ────────────────────────────
 function addAllBrandsMessage(data) {
   const welcome = document.getElementById('welcome');
@@ -411,14 +443,14 @@ function addAllBrandsMessage(data) {
     <div class="all-brands-header">
       <span class="all-brands-icon">🔍</span>
       <span class="all-brands-title">Vergelijking — alle merken</span>
-      <button class="export-pdf-btn" id="${exportId}">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-          <polyline points="7 10 12 15 17 10"></polyline>
-          <line x1="12" y1="15" x2="12" y2="3"></line>
-        </svg>
-        Exporteer naar PDF
-      </button>
+      <div class="action-btns">
+        <button class="action-icon-btn" id="${exportId}" title="Exporteer naar PDF">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
+        <button class="action-icon-btn" id="${exportId}-mail" title="Stuur als e-mail">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,12 2,6"></polyline></svg>
+        </button>
+      </div>
     </div>
     <div class="all-brands-synthesis">${synthesisHtml}</div>`;
 
@@ -450,19 +482,28 @@ function addAllBrandsMessage(data) {
       </details>`;
   });
 
-  html += `</div></div>`;
+  html += `</div><div class="all-brands-footer"><div class="action-btns action-btns-bottom"><button class="action-icon-btn action-icon-btn-dark" id="${exportId}-bottom" title="Exporteer naar PDF"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button><button class="action-icon-btn action-icon-btn-dark" id="${exportId}-mail-bottom" title="Stuur als e-mail"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,12 2,6"></polyline></svg></button></div></div></div>`;
   div.innerHTML = html;
   chat.appendChild(div);
-  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
 
-  // Wire export button now that it's in the DOM
+  // Capture query from preceding user message
+  const userMessages = chat.querySelectorAll('.message.user .bubble');
+  const lastQuery = userMessages.length ? userMessages[userMessages.length - 1].textContent : '';
+
+  // Wire header buttons
   const exportBtn = document.getElementById(exportId);
-  if (exportBtn) {
-    // capture query from the preceding user message
-    const userMessages = chat.querySelectorAll('.message.user .bubble');
-    const lastQuery = userMessages.length ? userMessages[userMessages.length - 1].textContent : '';
-    exportBtn.onclick = () => exportAllBrandsToPdf(lastQuery, synthesisHtml, data.brands);
-  }
+  if (exportBtn) exportBtn.onclick = () => exportAllBrandsToPdf(lastQuery, synthesisHtml, data.brands);
+  const mailBtn = document.getElementById(exportId + '-mail');
+  if (mailBtn) mailBtn.onclick = () => composeAllBrandsEmail(lastQuery, data.brands);
+
+  // Wire bottom buttons
+  const exportBtnB = document.getElementById(exportId + '-bottom');
+  if (exportBtnB) exportBtnB.onclick = () => exportAllBrandsToPdf(lastQuery, synthesisHtml, data.brands);
+  const mailBtnB = document.getElementById(exportId + '-mail-bottom');
+  if (mailBtnB) mailBtnB.onclick = () => composeAllBrandsEmail(lastQuery, data.brands);
+
+  // Scroll to TOP of this answer so user can start reading immediately
+  div.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── Send message ───────────────────────────────────────────
