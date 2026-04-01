@@ -16,8 +16,7 @@ INDEX_NAME = "hypotheek-docs"
 
 # ── Model & Vector Store ──────────────────────────────────────
 print("Connecting to model and Pinecone...")
-#model        = init_chat_model("gpt-4.1")
-model        = init_chat_model("gpt-5.1")
+model        = init_chat_model("gpt-4.1")
 embeddings   = OpenAIEmbeddings(model="text-embedding-3-large")
 vector_store = PineconeVectorStore(index_name=INDEX_NAME, embedding=embeddings)
 print("Ready.")
@@ -43,9 +42,6 @@ def make_agent(brand_key: str):
         f"a Dutch mortgage provider. Use the tool to answer user queries accurately. "
         f"Always cite the relevant section and page number from the policy. "
         f"Answer in the same language as the question."
-        f"Never include a hyperlink in the response, unless the hyperlink is quoted from the acceptance policy."
-        f"Never give any advice. Your sole role is to answer questions with information in the acceptance policy of {brand['name']}."
-        f"In case advice is asked always refer them to professional help and politely refuse to answer."
     )
     return create_react_agent(model, [retrieve_context], prompt=prompt)
 
@@ -93,23 +89,11 @@ def ask():
             if hasattr(last, "content") and last.content and getattr(last, "type", "") == "ai":
                 if not getattr(last, "tool_calls", None):
                     final_answer = last.content
-            # Capture source documents from tool results
             if hasattr(last, "type") and last.type == "tool":
                 if hasattr(last, "artifact") and last.artifact:
                     source_docs = last.artifact
 
-        # Extract all page numbers from source docs and answer text
-        pages = []
-        if source_docs:
-            for doc in source_docs:
-                p = doc.metadata.get("page")
-                if p is not None:
-                    pages.append(int(p) + 1)  # PyPDF is 0-indexed
-        if not pages:
-            matches = re.findall(r'[Pp]agina\s*(\d+)', final_answer)
-            pages = [int(p) for p in matches]
-        pages = sorted(set(pages))
-
+        pages = _extract_pages(source_docs, final_answer)
         print(f"[DONE] Returning answer ({len(final_answer)} chars), pages={pages}")
         return jsonify({
             "answer": final_answer or "Geen antwoord ontvangen.",
@@ -119,6 +103,33 @@ def ask():
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"answer": f"Fout: {str(e)}"}), 500
+
+
+def _extract_pages(source_docs, final_answer) -> list:
+    pages = set()
+
+    # Source 1: Pinecone/PyPDF metadata — 0-indexed, so add +1
+    for doc in source_docs:
+        p = doc.metadata.get("page")
+        if p is not None:
+            pages.add(int(p) + 1)
+
+    # Source 2: page numbers the LLM explicitly cited in its answer text.
+    # These are already human-readable (1-indexed) — no offset needed.
+    text_pages = {int(p) for p in re.findall(r'[Pp]agina\s*(\d+)', final_answer)}
+
+    # Merge: keep text pages that are close to (within 2) a metadata page,
+    # OR keep all text pages when no metadata pages were found.
+    # This prevents stray numbers in the text from generating wrong buttons
+    # while still catching pages the LLM cited that metadata missed.
+    if pages:
+        for tp in text_pages:
+            if any(abs(tp - mp) <= 2 for mp in pages):
+                pages.add(tp)
+    else:
+        pages = text_pages
+
+    return sorted(pages)
 
 
 def run_brand_agent(brand_key: str, query: str) -> dict:
@@ -139,20 +150,10 @@ def run_brand_agent(brand_key: str, query: str) -> dict:
             if hasattr(last, "artifact") and last.artifact:
                 source_docs = last.artifact
 
-    pages = []
-    for doc in source_docs:
-        p = doc.metadata.get("page")
-        if p is not None:
-            pages.append(int(p) + 1)
-    if not pages:
-        matches = re.findall(r'[Pp]agina\s*(\d+)', final_answer)
-        pages = [int(p) for p in matches]
-    pages = sorted(set(pages))
-
     return {
         "brand_key": brand_key,
         "answer":    final_answer or "Geen informatie gevonden.",
-        "pages":     pages,
+        "pages":     _extract_pages(source_docs, final_answer),
     }
 
 
@@ -191,22 +192,16 @@ Vraag: {query}
 
 {brand_summaries}
 
-Geef nooit advies. Jouw enige rol is om informatie uit de bronnen te halen en gestructureerd weer te geven.
-Indien advies wordt gevraagd dan vriendelijk weigeren en doorverwijzen naar een professional.
-
-Herhaal de vraag als startpunt van het antwoord.
-Geef een helder vergelijkend overzicht in tabelvorm:
-- Zet de merken in de kolommen, zet de features in rijen 
+Geef een helder vergelijkend overzicht:
 - Vergelijk de merken op de gestelde vraag en markeer overeenkomsten en verschillen.
-- Zet nooit hyperlinks in de reactie, tenzij het een directe quote is
-Na de tabel:
+- Als iets alleen bij één of enkele merken mogelijk is, benoem dat expliciet en geef daar meer detail over.
+- Gebruik een tabel als dat de vergelijking verduidelijkt.
 - Sluit af met een korte conclusie.
 - Antwoord in dezelfde taal als de vraag."""
 
         synthesis_response = model.invoke([{"role": "user", "content": synthesis_prompt}])
         synthesis = synthesis_response.content
 
-        # Return per-brand results and the synthesis
         brands_out = {
             key: {
                 "answer": brand_results[key]["answer"],
