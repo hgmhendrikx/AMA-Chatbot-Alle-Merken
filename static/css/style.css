@@ -695,3 +695,12 @@ details[open] .chevron { transform: rotate(180deg); }
   border-top: 1px solid var(--border);
   background: var(--bg);
 }
+
+/* ── Clickable source-tag citations ── */
+.source-tag-link {
+  cursor: pointer;
+}
+.source-tag-link:hover {
+  background: #C3E6CB;
+  color: var(--accent);
+}
