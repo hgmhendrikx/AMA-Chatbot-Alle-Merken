@@ -303,7 +303,12 @@ function formatAnswer(text) {
       .replace(/^[•\-] (.+)$/gm,'<li>$1</li>')
       .replace(/(<li>.*<\/li>)/gs,'<ul>$1</ul>')
       .replace(/^---$/gm,'<hr>')
-      .replace(/(\([^)]*pagina[^)]+\))/gi, match => `<span class="source-tag">${match}</span>`)
+      .replace(/(\([^)]*pagina[^)]+\))/gi, match => {
+      const nums = [...match.matchAll(/\d+/g)].map(n => parseInt(n[0]));
+      const first = nums.length ? nums[0] : null;
+      const onclick = first ? `onclick="jumpToPage(${first})"` : '';
+      return `<span class="source-tag source-tag-link" ${onclick} title="Spring naar pagina ${first}">${match}</span>`;
+    })
       .split('\n').map(line => line.startsWith('<') ? line : `<p>${line}</p>`).join('');
   });
 
