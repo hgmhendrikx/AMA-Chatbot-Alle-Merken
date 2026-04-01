@@ -193,7 +193,7 @@ const chat = document.getElementById('chat');
 
 function extractPages(text) {
   // Collect all unique page numbers mentioned in the answer text
-  const matches = [...text.matchAll(/[Pp]agina\s*(\d+)/g)];
+  const matches = [...text.matchAll(/\(pagina\s*(\d+)\)/gi)];
   const pages = [...new Set(matches.map(m => parseInt(m[1])))].sort((a, b) => a - b);
   return pages;
 }
@@ -297,7 +297,7 @@ function formatAnswer(text) {
       .replace(/^[•\-] (.+)$/gm,'<li>$1</li>')
       .replace(/(<li>.*<\/li>)/gs,'<ul>$1</ul>')
       .replace(/^---$/gm,'<hr>')
-      .replace(/(Pagina\s*\d+[^\n<]*)/g, match => `<span class="source-tag">${match}</span>`)
+      .replace(/(\(pagina\s*\d+\))/gi, match => `<span class="source-tag">${match}</span>`)
       .split('\n').map(line => line.startsWith('<') ? line : `<p>${line}</p>`).join('');
   });
 
