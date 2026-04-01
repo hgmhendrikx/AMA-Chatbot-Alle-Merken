@@ -622,22 +622,76 @@ details[open] .chevron { transform: rotate(180deg); }
   background: var(--bg);
 }
 
-/* ── Export to PDF button ── */
-.export-pdf-btn {
+
+
+/* ── Action icon buttons (PDF + email) ── */
+.action-btns {
   display: flex;
-  align-items: center;
   gap: 6px;
   margin-left: auto;
+  flex-shrink: 0;
+}
+.action-btns-bottom {
+  margin-left: 0;
+}
+.action-icon-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
   background: rgba(255,255,255,0.15);
   border: 1px solid rgba(255,255,255,0.25);
   border-radius: 7px;
   color: white;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 600;
   cursor: pointer;
-  font-family: 'DM Sans', sans-serif;
   transition: background 0.15s;
   flex-shrink: 0;
 }
-.export-pdf-btn:hover { background: rgba(255,255,255,0.28); }
+.action-icon-btn:hover {
+  background: rgba(255,255,255,0.30);
+}
+/* Tooltip */
+.action-icon-btn::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1A1A2E;
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 5px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-family: 'DM Sans', sans-serif;
+}
+.action-icon-btn:hover::after {
+  opacity: 1;
+}
+/* Dark variant for bottom bar */
+.action-icon-btn-dark {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--accent);
+}
+.action-icon-btn-dark:hover {
+  background: var(--border);
+}
+.action-icon-btn-dark::after {
+  bottom: calc(100% + 6px);
+}
+
+/* All-brands footer bar */
+.all-brands-footer {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
