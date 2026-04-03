@@ -11,7 +11,6 @@ from langgraph.prebuilt import create_react_agent
 from brands import BRANDS
 
 # ── Environment ───────────────────────────────────────────────
-# All secrets come from environment variables — never hardcoded
 INDEX_NAME = "hypotheek-docs"
 
 # ── Model & Vector Store ──────────────────────────────────────
@@ -40,10 +39,7 @@ def make_agent(brand_key: str):
     prompt = (
         f"You have access to a tool that retrieves context from the acceptance policy of {brand['name']}, "
         f"a Dutch mortgage provider. Use the tool to answer user queries accurately. "
-        f"Always cite your sources using exactly this format: (pagina X) — where X is the page number. "
-        f"Use lowercase 'pagina' followed by a space and the number, always in parentheses. "
-        f"Example: 'De maximale LTV is 100% (pagina 22).' "
-        f"Never use abbreviations like 'pag.' or 'p.' or footnote markers. "
+        f"Always cite the relevant section and page number from the policy. "
         f"Answer in the same language as the question."
     )
     return create_react_agent(model, [retrieve_context], prompt=prompt)
@@ -65,6 +61,32 @@ def index():
         "pdf_url": v["pdf_url"],
     } for k, v in BRANDS.items()})
     return render_template("index.html", brands_json=brands_json)
+
+
+def extract_highlight_phrases(chunks: list[str]) -> list[str]:
+    """
+    Extract short, distinctive phrases from source chunks suitable for
+    PDF.js text search highlighting. Takes up to 2 sentences per chunk
+    to avoid overly long search strings that won't match due to line breaks
+    in the PDF text layer.
+    """
+    phrases = []
+    for chunk in chunks:
+        # Normalise whitespace
+        text = re.sub(r'\s+', ' ', chunk).strip()
+        # Split on sentence boundaries
+        sentences = re.split(r'(?<=[.!?])\s+', text)
+        candidates = []
+        if sentences:
+            candidates.append(sentences[0])
+        if len(sentences) > 2:
+            candidates.append(sentences[len(sentences) // 2])
+        for c in candidates:
+            c = c.strip()
+            # Long enough to be distinctive, short enough for PDF.js to match
+            if 20 <= len(c) <= 200:
+                phrases.append(c)
+    return phrases
 
 
 @app.route("/ask", methods=["POST"])
@@ -96,11 +118,27 @@ def ask():
                 if hasattr(last, "artifact") and last.artifact:
                     source_docs = last.artifact
 
-        pages = _extract_pages(source_docs, final_answer)
-        print(f"[DONE] Returning answer ({len(final_answer)} chars), pages={pages}")
+        # Extract page numbers
+        pages = []
+        if source_docs:
+            for doc in source_docs:
+                p = doc.metadata.get("page")
+                if p is not None:
+                    pages.append(int(p) + 1)  # PyPDF is 0-indexed
+        if not pages:
+            matches = re.findall(r'[Pp]agina\s*(\d+)', final_answer)
+            pages = [int(p) for p in matches]
+        pages = sorted(set(pages))
+
+        # Extract highlight phrases from the raw source chunks
+        raw_chunks = [doc.page_content for doc in source_docs]
+        highlight_phrases = extract_highlight_phrases(raw_chunks)
+
+        print(f"[DONE] Returning answer ({len(final_answer)} chars), pages={pages}, phrases={len(highlight_phrases)}")
         return jsonify({
-            "answer": final_answer or "Geen antwoord ontvangen.",
-            "pages":  pages,
+            "answer":  final_answer or "Geen antwoord ontvangen.",
+            "pages":   pages,
+            "chunks":  highlight_phrases,   # ← sent to frontend for PDF highlighting
         })
 
     except Exception as e:
@@ -108,20 +146,8 @@ def ask():
         return jsonify({"answer": f"Fout: {str(e)}"}), 500
 
 
-def _extract_pages(source_docs, final_answer) -> list:
-    # Use ONLY the page numbers the LLM explicitly cites in its answer text.
-    # These match the printed page numbers visible in the PDF, which is what
-    # the user sees. Pinecone metadata pages are physical (0-indexed) positions
-    # in the file and include front matter, so they don't match printed numbers.
-    # Match (pagina 21), (pagina 21 en pagina 30), (pagina 21, 22 en 30), etc.
-    pages = set()
-    for citation in re.findall(r'\(([^)]*pagina[^)]+)\)', final_answer, re.IGNORECASE):
-        pages.update(int(p) for p in re.findall(r'\d+', citation))
-    return sorted(pages)
-
-
 def run_brand_agent(brand_key: str, query: str) -> dict:
-    """Run a single brand agent and return its answer and pages."""
+    """Run a single brand agent and return its answer, pages, and highlight chunks."""
     agent = agent_cache[brand_key]
     final_answer = ""
     source_docs  = []
@@ -138,10 +164,24 @@ def run_brand_agent(brand_key: str, query: str) -> dict:
             if hasattr(last, "artifact") and last.artifact:
                 source_docs = last.artifact
 
+    pages = []
+    for doc in source_docs:
+        p = doc.metadata.get("page")
+        if p is not None:
+            pages.append(int(p) + 1)
+    if not pages:
+        matches = re.findall(r'[Pp]agina\s*(\d+)', final_answer)
+        pages = [int(p) for p in matches]
+    pages = sorted(set(pages))
+
+    raw_chunks = [doc.page_content for doc in source_docs]
+    highlight_phrases = extract_highlight_phrases(raw_chunks)
+
     return {
         "brand_key": brand_key,
         "answer":    final_answer or "Geen informatie gevonden.",
-        "pages":     _extract_pages(source_docs, final_answer),
+        "pages":     pages,
+        "chunks":    highlight_phrases,
     }
 
 
@@ -156,7 +196,6 @@ def ask_all():
 
         print(f"\n[ASK-ALL] Query={query}")
 
-        # Query all brands in parallel
         brand_results = {}
         with ThreadPoolExecutor(max_workers=len(BRANDS)) as executor:
             futures = {
@@ -167,7 +206,6 @@ def ask_all():
                 result = future.result()
                 brand_results[result["brand_key"]] = result
 
-        # Build synthesis prompt
         brand_summaries = "\n\n".join(
             f"## {BRANDS[key]['name']}\n{brand_results[key]['answer']}"
             for key in BRANDS
@@ -180,10 +218,11 @@ Vraag: {query}
 
 {brand_summaries}
 
-Geef een helder vergelijkend overzicht:
+Herhaal de vraag als startpunt van het antwoord.
+Geef een helder vergelijkend overzicht in tabelvorm:
+- Zet de merken in de kolommen, zet de features in rijen 
 - Vergelijk de merken op de gestelde vraag en markeer overeenkomsten en verschillen.
-- Als iets alleen bij één of enkele merken mogelijk is, benoem dat expliciet en geef daar meer detail over.
-- Gebruik een tabel als dat de vergelijking verduidelijkt.
+Na de tabel:
 - Sluit af met een korte conclusie.
 - Antwoord in dezelfde taal als de vraag."""
 
@@ -194,6 +233,7 @@ Geef een helder vergelijkend overzicht:
             key: {
                 "answer": brand_results[key]["answer"],
                 "pages":  brand_results[key]["pages"],
+                "chunks": brand_results[key]["chunks"],   # ← included per brand
             }
             for key in BRANDS
             if key in brand_results
