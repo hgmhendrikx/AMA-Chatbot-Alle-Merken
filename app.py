@@ -16,8 +16,7 @@ INDEX_NAME = "hypotheek-docs"
 
 # ── Model & Vector Store ──────────────────────────────────────
 print("Connecting to model and Pinecone...")
-#model        = init_chat_model("gpt-4.1")
-model        = init_chat_model("gpt-5.1")
+model        = init_chat_model("gpt-4.1")
 embeddings   = OpenAIEmbeddings(model="text-embedding-3-large")
 vector_store = PineconeVectorStore(index_name=INDEX_NAME, embedding=embeddings)
 print("Ready.")
@@ -41,7 +40,10 @@ def make_agent(brand_key: str):
     prompt = (
         f"You have access to a tool that retrieves context from the acceptance policy of {brand['name']}, "
         f"a Dutch mortgage provider. Use the tool to answer user queries accurately. "
-        f"Always cite the relevant section and page number from the policy. "
+        f"Always cite your sources using exactly this format: (pagina X) — where X is the page number. "
+        f"Use lowercase 'pagina' followed by a space and the number, always in parentheses. "
+        f"Example: 'De maximale LTV is 100% (pagina 22).' "
+        f"Never use abbreviations like 'pag.' or 'p.' or footnote markers. "
         f"Answer in the same language as the question."
     )
     return create_react_agent(model, [retrieve_context], prompt=prompt)
@@ -90,23 +92,11 @@ def ask():
             if hasattr(last, "content") and last.content and getattr(last, "type", "") == "ai":
                 if not getattr(last, "tool_calls", None):
                     final_answer = last.content
-            # Capture source documents from tool results
             if hasattr(last, "type") and last.type == "tool":
                 if hasattr(last, "artifact") and last.artifact:
                     source_docs = last.artifact
 
-        # Extract all page numbers from source docs and answer text
-        pages = []
-        if source_docs:
-            for doc in source_docs:
-                p = doc.metadata.get("page")
-                if p is not None:
-                    pages.append(int(p) + 1)  # PyPDF is 0-indexed
-        if not pages:
-            matches = re.findall(r'[Pp]agina\s*(\d+)', final_answer)
-            pages = [int(p) for p in matches]
-        pages = sorted(set(pages))
-
+        pages = _extract_pages(source_docs, final_answer)
         print(f"[DONE] Returning answer ({len(final_answer)} chars), pages={pages}")
         return jsonify({
             "answer": final_answer or "Geen antwoord ontvangen.",
@@ -116,6 +106,18 @@ def ask():
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"answer": f"Fout: {str(e)}"}), 500
+
+
+def _extract_pages(source_docs, final_answer) -> list:
+    # Use ONLY the page numbers the LLM explicitly cites in its answer text.
+    # These match the printed page numbers visible in the PDF, which is what
+    # the user sees. Pinecone metadata pages are physical (0-indexed) positions
+    # in the file and include front matter, so they don't match printed numbers.
+    # Match (pagina 21), (pagina 21 en pagina 30), (pagina 21, 22 en 30), etc.
+    pages = set()
+    for citation in re.findall(r'\(([^)]*pagina[^)]+)\)', final_answer, re.IGNORECASE):
+        pages.update(int(p) for p in re.findall(r'\d+', citation))
+    return sorted(pages)
 
 
 def run_brand_agent(brand_key: str, query: str) -> dict:
@@ -136,20 +138,10 @@ def run_brand_agent(brand_key: str, query: str) -> dict:
             if hasattr(last, "artifact") and last.artifact:
                 source_docs = last.artifact
 
-    pages = []
-    for doc in source_docs:
-        p = doc.metadata.get("page")
-        if p is not None:
-            pages.append(int(p) + 1)
-    if not pages:
-        matches = re.findall(r'[Pp]agina\s*(\d+)', final_answer)
-        pages = [int(p) for p in matches]
-    pages = sorted(set(pages))
-
     return {
         "brand_key": brand_key,
         "answer":    final_answer or "Geen informatie gevonden.",
-        "pages":     pages,
+        "pages":     _extract_pages(source_docs, final_answer),
     }
 
 
@@ -188,18 +180,16 @@ Vraag: {query}
 
 {brand_summaries}
 
-Herhaal de vraag als startpunt van het antwoord.
-Geef een helder vergelijkend overzicht in tabelvorm:
-- Zet de merken in de kolommen, zet de features in rijen 
+Geef een helder vergelijkend overzicht:
 - Vergelijk de merken op de gestelde vraag en markeer overeenkomsten en verschillen.
-Na de tabel:
+- Als iets alleen bij één of enkele merken mogelijk is, benoem dat expliciet en geef daar meer detail over.
+- Gebruik een tabel als dat de vergelijking verduidelijkt.
 - Sluit af met een korte conclusie.
 - Antwoord in dezelfde taal als de vraag."""
 
         synthesis_response = model.invoke([{"role": "user", "content": synthesis_prompt}])
         synthesis = synthesis_response.content
 
-        # Return per-brand results and the synthesis
         brands_out = {
             key: {
                 "answer": brand_results[key]["answer"],
