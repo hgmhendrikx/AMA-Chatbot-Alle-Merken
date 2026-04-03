@@ -2,9 +2,13 @@
    BRANDS is injected by the template as a global variable. */
 
 let activeBrand    = null;
-let activePdfBrand = null;  // tracks which brand PDF is shown (relevant in all-brands mode)
+let activePdfBrand = null;
 let pdfOpen        = false;
 let currentPage    = null;
+
+// Stores key phrases per brand from the most recent answer
+// e.g. { "attens": ["maximaal 90% van de marktwaarde", ...] }
+let currentPhrases = {};
 
 // ── All-brands PDF picker ──────────────────────────────────
 function showAllBrandsPdfPicker() {
@@ -24,7 +28,6 @@ function showAllBrandsPdfPicker() {
 // ── Build sidebar ──────────────────────────────────────────
 const brandList = document.getElementById('brand-list');
 
-// "Alle merken" item at the top
 const allEl = document.createElement('div');
 allEl.className = 'brand-item';
 allEl.dataset.key = '__all__';
@@ -35,7 +38,6 @@ allEl.innerHTML = `
 allEl.onclick = () => selectAllBrands();
 brandList.appendChild(allEl);
 
-// Divider
 const divider = document.createElement('div');
 divider.className = 'sidebar-divider';
 brandList.appendChild(divider);
@@ -55,12 +57,9 @@ Object.entries(BRANDS).forEach(([key, brand]) => {
 // ── Select all brands ──────────────────────────────────────
 function selectAllBrands() {
   activeBrand = '__all__';
-
   document.querySelectorAll('.brand-item').forEach(el => {
     el.classList.toggle('active', el.dataset.key === '__all__');
   });
-
-  // Neutral dark header for all-brands mode
   const allColor  = '#2D2D44';
   const allAccent = '#7B68EE';
   document.getElementById('header').style.background = allColor;
@@ -69,19 +68,11 @@ function selectAllBrands() {
   document.getElementById('header-icon').textContent    = '🔍';
   document.getElementById('header-title').textContent   = 'Alle merken';
   document.getElementById('header-sub').textContent     = 'Vergelijk acceptatiebeleid over alle geldverstrekkers';
-
-  // Show PDF button — in all-brands mode it opens a brand picker
   const pdfBtn = document.getElementById('pdf-toggle-btn');
   pdfBtn.style.display = 'flex';
   pdfBtn.classList.remove('active');
-
-  // Reset PDF panel to brand-picker mode
   showAllBrandsPdfPicker();
-
-  if (window.innerWidth <= 768) {
-    document.getElementById('sidebar').classList.add('collapsed');
-  }
-
+  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
   const ta = document.getElementById('query');
   ta.disabled = false;
   ta.placeholder = 'Stel een vergelijkingsvraag over alle merken...';
@@ -93,35 +84,22 @@ function selectAllBrands() {
 function selectBrand(key) {
   activeBrand = key;
   const brand = BRANDS[key];
-
   document.querySelectorAll('.brand-item').forEach(el => {
     const b = BRANDS[el.dataset.key];
     if (b) el.style.setProperty('--brand-accent', b.accent);
     el.classList.toggle('active', el.dataset.key === key);
   });
-
   document.getElementById('header').style.background = brand.color;
   document.documentElement.style.setProperty('--accent',  brand.color);
   document.documentElement.style.setProperty('--accent2', brand.accent);
-  document.getElementById('header-icon').textContent    = brand.icon;
-  document.getElementById('header-title').textContent   = brand.name;
-  document.getElementById('header-sub').textContent     = 'Acceptatiegids assistent';
+  document.getElementById('header-icon').textContent     = brand.icon;
+  document.getElementById('header-title').textContent    = brand.name;
+  document.getElementById('header-sub').textContent      = 'Acceptatiegids assistent';
   document.getElementById('pdf-panel-title').textContent = brand.name + ' — Acceptatiegids';
-
-  // Show PDF button
-  const pdfBtn = document.getElementById('pdf-toggle-btn');
-  pdfBtn.style.display = 'flex';
-
-  // On mobile: collapse sidebar after selecting a brand
-  if (window.innerWidth <= 768) {
-    document.getElementById('sidebar').classList.add('collapsed');
-  }
-
-  // Reset PDF panel to first page of new brand
+  document.getElementById('pdf-toggle-btn').style.display = 'flex';
+  if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
   currentPage = 1;
   if (pdfOpen) loadPdf(1);
-
-  // Enable input
   const ta = document.getElementById('query');
   ta.disabled = false;
   ta.placeholder = `Stel een vraag over ${brand.name}...`;
@@ -129,52 +107,101 @@ function selectBrand(key) {
   ta.focus();
 }
 
-// ── PDF panel ──────────────────────────────────────────────
+// ── PDF panel toggle ───────────────────────────────────────
 function togglePdf() {
   pdfOpen = !pdfOpen;
   const panel   = document.getElementById('pdf-panel');
   const sidebar = document.getElementById('sidebar');
   const btn     = document.getElementById('pdf-toggle-btn');
-
   panel.classList.toggle('open', pdfOpen);
   sidebar.classList.toggle('collapsed', pdfOpen);
   btn.classList.toggle('active', pdfOpen);
-
   if (pdfOpen) {
-    if (activeBrand === '__all__') {
-      showAllBrandsPdfPicker();
-    } else {
-      loadPdf(currentPage || 1);
-    }
+    if (activeBrand === '__all__') showAllBrandsPdfPicker();
+    else loadPdf(currentPage || 1);
   }
 }
 
-function loadPdf(page, brandKey) {
-  // In all-brands mode, use the explicitly passed brandKey or fall back to activePdfBrand
+// ── Core PDF loader ────────────────────────────────────────
+// phrases: optional array of strings to highlight after the PDF loads
+function loadPdf(page, brandKey, phrases) {
   const key = brandKey || (activeBrand !== '__all__' ? activeBrand : activePdfBrand);
   if (!key) return;
   const brand = BRANDS[key];
   if (!brand || !brand.pdf_url) return;
 
   activePdfBrand = key;
-  // Use PDF.js viewer — gives full control over link behaviour (links open in new tab)
-  const encoded = encodeURIComponent(window.location.origin + brand.pdf_url);
+  const encoded   = encodeURIComponent(window.location.origin + brand.pdf_url);
   const viewerUrl = `/static/pdfjs/web/viewer.html?file=${encoded}#page=${page || 1}`;
-  const wrap = document.getElementById('pdf-frame-wrap');
-  wrap.innerHTML = `<iframe src="${viewerUrl}" title="${brand.name} Acceptatiegids"></iframe>`;
+  const wrap      = document.getElementById('pdf-frame-wrap');
+
+  const iframe = document.createElement('iframe');
+  iframe.title        = brand.name + ' Acceptatiegids';
+  iframe.style.width  = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = 'none';
+
+  if (phrases && phrases.length > 0) {
+    iframe.addEventListener('load', () => {
+      // Wait 800 ms for PDF.js to finish rendering before firing find commands
+      setTimeout(() => highlightPhrasesInIframe(iframe, phrases), 800);
+    });
+  }
+
+  iframe.src = viewerUrl;
+  wrap.innerHTML = '';
+  wrap.appendChild(iframe);
   document.getElementById('pdf-panel-title').textContent = brand.name + ' — Acceptatiegids';
 }
 
+// ── Highlight phrases via PDF.js Find API ──────────────────
+// PDF.js (same-origin) exposes PDFViewerApplication inside the iframe.
+// We call executeCommand('find', ...) for each phrase so all occurrences
+// on the page get a yellow highlight.
+function highlightPhrasesInIframe(iframe, phrases) {
+  if (!phrases || phrases.length === 0) return;
+  try {
+    const win = iframe.contentWindow;
+    if (!win) return;
+    const app = win.PDFViewerApplication;
+    if (!app || !app.findController) {
+      // Not ready yet — retry once
+      setTimeout(() => highlightPhrasesInIframe(iframe, phrases), 1000);
+      return;
+    }
+    // Stagger each phrase by 150 ms so PDF.js doesn't drop events
+    phrases.forEach((phrase, i) => {
+      setTimeout(() => {
+        try {
+          app.findController.executeCommand('find', {
+            query:         phrase,
+            highlightAll:  true,
+            caseSensitive: false,
+            phraseSearch:  true,
+            findPrevious:  false,
+          });
+        } catch (_) { /* individual phrase failures are silent */ }
+      }, i * 150);
+    });
+  } catch (e) {
+    console.warn('Could not access PDF.js iframe:', e);
+  }
+}
+
+// ── Jump to page + highlight ───────────────────────────────
+// Called by every "Pagina X" button.
 function jumpToPage(page, brandKey) {
-  currentPage = page;
+  const key     = brandKey || activeBrand;
+  const phrases = currentPhrases[key] || [];
+  currentPage   = page;
   if (pdfOpen) {
-    loadPdf(page, brandKey);
+    loadPdf(page, key, phrases);
   } else {
     pdfOpen = true;
     document.getElementById('pdf-panel').classList.add('open');
     document.getElementById('sidebar').classList.add('collapsed');
     document.getElementById('pdf-toggle-btn').classList.add('active');
-    loadPdf(page, brandKey);
+    loadPdf(page, key, phrases);
   }
 }
 
@@ -192,48 +219,42 @@ textarea.addEventListener('keydown', e => {
 const chat = document.getElementById('chat');
 
 function extractPages(text) {
-  // Collect all unique page numbers mentioned in the answer text
-  // Match (pagina 21), (pagina 21 en pagina 30), (pagina 21, 22 en 30), etc.
-  const pages = [];
-  const citations = [...text.matchAll(/\(([^)]*pagina[^)]+)\)/gi)];
-  citations.forEach(m => {
-    const nums = [...m[1].matchAll(/\d+/g)].map(n => parseInt(n[0]));
-    nums.forEach(n => pages.push(n));
-  });
-  const uniquePages = [...new Set(pages)].sort((a, b) => a - b);
-  return uniquePages;
+  const matches = [...text.matchAll(/[Pp]agina\s*(\d+)/g)];
+  return [...new Set(matches.map(m => parseInt(m[1])))].sort((a, b) => a - b);
 }
 
-function buildPageButtons(pages) {
+function buildPageButtons(pages, brandKey) {
   if (!pages || pages.length === 0) return '';
   const svgIcon = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
     <polyline points="14 2 14 8 20 8"></polyline>
   </svg>`;
-  const buttons = pages.map(p =>
-    `<button class="page-jump-btn" onclick="jumpToPage(${p})">${svgIcon} Pagina ${p}</button>`
-  ).join('');
-  return `<div class="page-buttons">${buttons}</div>`;
+  const bk = brandKey ? `'${brandKey}'` : 'null';
+  return `<div class="page-buttons">${
+    pages.map(p => `<button class="page-jump-btn" onclick="jumpToPage(${p}, ${bk})">${svgIcon} Pagina ${p}</button>`).join('')
+  }</div>`;
 }
 
-function addMessage(role, html, brandKey, pages = []) {
+function addMessage(role, html, brandKey, pages = [], phrases = []) {
   const welcome = document.getElementById('welcome');
   if (welcome) welcome.remove();
+
+  // Store phrases so jumpToPage can retrieve them later
+  if (phrases.length > 0 && brandKey) {
+    currentPhrases[brandKey] = phrases;
+  }
 
   const div = document.createElement('div');
   div.className = `message ${role}`;
 
   let pageBtns = '';
   if (role === 'ai') {
-    pageBtns = buildPageButtons(pages);
-
-    // Auto-jump to first referenced page if PDF is open
-    if (pages.length > 0 && pdfOpen) {
-      jumpToPage(pages[0]);
-    }
+    pageBtns = buildPageButtons(pages, brandKey);
+    // If PDF already open, auto-jump to first cited page with highlights
+    if (pages.length > 0 && pdfOpen) jumpToPage(pages[0], brandKey);
   }
 
-  if (role === 'ai' && brandKey) {
+  if (role === 'ai' && brandKey && BRANDS[brandKey]) {
     const b = BRANDS[brandKey];
     div.innerHTML = `
       <div class="brand-tag"><span style="background:${b.color}"></span>${b.name}</div>
@@ -243,7 +264,7 @@ function addMessage(role, html, brandKey, pages = []) {
   }
 
   chat.appendChild(div);
-  div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
 function showTyping() {
@@ -257,45 +278,24 @@ function removeTyping() { const t = document.getElementById('typing'); if (t) t.
 
 function parseMarkdownTable(block) {
   const lines = block.trim().split('\n').filter(l => l.trim());
-  if (lines.length < 2) return null;
-  // Check it looks like a table (starts and ends with |)
-  if (!lines[0].trim().startsWith('|')) return null;
-
+  if (lines.length < 2 || !lines[0].trim().startsWith('|')) return null;
   const parseRow = line =>
     line.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
-
-  const headers = parseRow(lines[0]);
-  // lines[1] should be the separator row (---|---|...)
   const isSep = l => /^[\s|:\-]+$/.test(l);
   if (!isSep(lines[1])) return null;
-
-  const rows = lines.slice(2).map(parseRow);
-
+  const headers = parseRow(lines[0]);
+  const rows    = lines.slice(2).map(parseRow);
   const ths = headers.map(h => `<th>${h}</th>`).join('');
-  const trs = rows.map(r =>
-    `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`
-  ).join('');
-
+  const trs = rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
   return `<div class="table-wrap"><table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table></div>`;
 }
 
 function formatAnswer(text) {
-  // HTML-escape first, then restore safe tags the LLM may output
-  const escaped = text
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/&lt;br\s*\/?&gt;/gi, '<br>');
-
-  // Split into blocks and process each
-  const blocks = escaped.split(/\n\n+/);
-  const processed = blocks.map(block => {
-    // Table block
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return escaped.split(/\n\n+/).map(block => {
     const table = parseMarkdownTable(block);
     if (table) return table;
-
-    // Already an HTML tag
     if (block.trimStart().startsWith('<')) return block;
-
-    // Apply inline formatting line by line
     return block
       .replace(/^### (.+)$/gm,'<h3>$1</h3>')
       .replace(/^## (.+)$/gm,'<h2>$1</h2>')
@@ -304,138 +304,9 @@ function formatAnswer(text) {
       .replace(/^[•\-] (.+)$/gm,'<li>$1</li>')
       .replace(/(<li>.*<\/li>)/gs,'<ul>$1</ul>')
       .replace(/^---$/gm,'<hr>')
-      .replace(/(\([^)]*pagina[^)]+\))/gi, match => {
-      const nums = [...match.matchAll(/\d+/g)].map(n => parseInt(n[0]));
-      const first = nums.length ? nums[0] : null;
-      const onclick = first ? `onclick="jumpToPage(${first})"` : '';
-      return `<span class="source-tag source-tag-link" ${onclick} title="Spring naar pagina ${first}">${match}</span>`;
-    })
+      .replace(/(Pagina\s*\d+[^\n<]*)/g, m => `<span class="source-tag">${m}</span>`)
       .split('\n').map(line => line.startsWith('<') ? line : `<p>${line}</p>`).join('');
-  });
-
-  return processed.join('');
-}
-
-// ── Export all-brands response to PDF ─────────────────────
-function exportAllBrandsToPdf(query, synthesisHtml, brandsData) {
-  const brandRows = Object.entries(BRANDS).map(([key, brand]) => {
-    const result = brandsData[key];
-    if (!result) return '';
-    return `
-      <div class="brand-section">
-        <div class="brand-section-header" style="border-left: 4px solid ${brand.color}">
-          <span>${brand.icon} ${brand.name}</span>
-        </div>
-        <div class="brand-section-body">${formatAnswer(result.answer)}</div>
-      </div>`;
   }).join('');
-
-  const now = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' });
-
-  const printHtml = `<!DOCTYPE html>
-<html lang="nl">
-<head>
-  <meta charset="UTF-8">
-  <title>Hypotheek Vergelijking — ${now}</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'DM Sans', sans-serif; font-size: 13px; color: #1A1A1A; background: white; padding: 40px 48px; }
-
-    .doc-header { border-bottom: 2px solid #1B4332; padding-bottom: 16px; margin-bottom: 28px; }
-    .doc-header h1 { font-family: 'DM Serif Display', serif; font-size: 22px; font-weight: 400; color: #1B4332; }
-    .doc-header .meta { font-size: 11px; color: #6B7280; margin-top: 6px; }
-    .doc-header .question { font-size: 14px; color: #1A1A1A; margin-top: 10px; padding: 10px 14px; background: #F7F5F0; border-radius: 6px; }
-
-    .section-title { font-family: 'DM Serif Display', serif; font-size: 16px; font-weight: 400; color: #1B4332; margin: 28px 0 12px; padding-bottom: 6px; border-bottom: 1px solid #E8E4DC; }
-
-    .synthesis { line-height: 1.7; }
-    .synthesis h2 { font-family: 'DM Serif Display', serif; font-size: 15px; font-weight: 400; color: #1B4332; margin: 14px 0 6px; }
-    .synthesis h3 { font-size: 13px; font-weight: 600; color: #1B4332; margin: 12px 0 5px; }
-    .synthesis p  { margin: 6px 0; }
-    .synthesis ul { margin: 6px 0 6px 18px; }
-    .synthesis li { margin: 3px 0; }
-    .synthesis strong { color: #1B4332; font-weight: 600; }
-    .synthesis table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 12px; }
-    .synthesis th { background: #1B4332; color: white; padding: 7px 10px; text-align: left; font-weight: 600; }
-    .synthesis td { padding: 6px 10px; border-bottom: 1px solid #E8E4DC; vertical-align: top; }
-    .synthesis tr:nth-child(even) td { background: #F7F5F0; }
-    .synthesis .table-wrap { overflow: visible; }
-
-    .brand-section { margin-bottom: 18px; page-break-inside: avoid; }
-    .brand-section-header { padding: 8px 12px; background: #F7F5F0; font-weight: 600; font-size: 13px; margin-bottom: 8px; }
-    .brand-section-body { padding: 0 4px; line-height: 1.65; }
-    .brand-section-body p  { margin: 5px 0; }
-    .brand-section-body ul { margin: 5px 0 5px 18px; }
-    .brand-section-body li { margin: 2px 0; }
-    .brand-section-body strong { font-weight: 600; }
-    .source-tag { display: none; }
-
-    .doc-footer { margin-top: 40px; padding-top: 12px; border-top: 1px solid #E8E4DC; font-size: 10px; color: #6B7280; display: flex; justify-content: space-between; }
-
-    @media print {
-      body { padding: 0; }
-      @page { margin: 20mm 18mm; }
-    }
-  </style>
-</head>
-<body>
-  <div class="doc-header">
-    <h1>Hypotheek Acceptatie Vergelijking</h1>
-    <div class="meta">Gegenereerd op ${now} · Hypotheek Acceptatie Assistent</div>
-    <div class="question"><strong>Vraag:</strong> ${query}</div>
-  </div>
-
-  <div class="section-title">Vergelijkend overzicht</div>
-  <div class="synthesis">${synthesisHtml}</div>
-
-  <div class="section-title">Per geldverstrekker</div>
-  ${brandRows}
-
-  <div class="doc-footer">
-    <span>Hypotheek Acceptatie Assistent</span>
-    <span>${now}</span>
-  </div>
-
-  <script>window.onload = () => window.print();<\/script>
-</body>
-</html>`;
-
-  const blob = new Blob([printHtml], { type: 'text/html' });
-  const url  = URL.createObjectURL(blob);
-  window.open(url, '_blank');
-}
-
-// ── Compose e-mail from all-brands response ───────────────
-function composeAllBrandsEmail(query, brandsData) {
-  const now = new Date().toLocaleDateString('nl-NL', { day: '2-digit', month: 'long', year: 'numeric' });
-
-  const stripHtml = html => {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.innerText || tmp.textContent || '';
-  };
-
-  const subject = encodeURIComponent('Hypotheek vergelijking — ' + query.substring(0, 60));
-
-  let body = 'Hypotheek Acceptatie Vergelijking\n';
-  body += 'Gegenereerd op ' + now + '\n';
-  body += '\nVraag: ' + query + '\n';
-  body += '\n' + '='.repeat(60) + '\n\n';
-
-  Object.entries(BRANDS).forEach(([key, brand]) => {
-    const result = brandsData[key];
-    if (!result) return;
-    body += brand.name.toUpperCase() + '\n';
-    body += '-'.repeat(40) + '\n';
-    body += stripHtml(formatAnswer(result.answer));
-    body += '\n\n';
-  });
-
-  body += '='.repeat(60) + '\n';
-  body += 'Hypotheek Acceptatie Assistent';
-
-  window.location.href = 'mailto:?subject=' + subject + '&body=' + encodeURIComponent(body);
 }
 
 // ── All-brands message renderer ────────────────────────────
@@ -443,31 +314,24 @@ function addAllBrandsMessage(data) {
   const welcome = document.getElementById('welcome');
   if (welcome) welcome.remove();
 
+  // Store per-brand phrases for jumpToPage
+  Object.entries(data.brands || {}).forEach(([key, result]) => {
+    if (result.key_phrases && result.key_phrases.length > 0) {
+      currentPhrases[key] = result.key_phrases;
+    }
+  });
+
   const div = document.createElement('div');
   div.className = 'message ai all-brands-message';
 
-  // Store for export
-  const synthesisHtml = formatAnswer(data.synthesis);
-  const exportId = 'export-' + Date.now();
-
-  // Synthesis block
   let html = `<div class="bubble all-brands-bubble">
     <div class="all-brands-header">
       <span class="all-brands-icon">🔍</span>
       <span class="all-brands-title">Vergelijking — alle merken</span>
-      <div class="action-btns">
-        <button class="action-icon-btn" id="${exportId}" title="Exporteer naar PDF">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-        </button>
-        <button class="action-icon-btn" id="${exportId}-mail" title="Stuur als e-mail">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,12 2,6"></polyline></svg>
-        </button>
-      </div>
     </div>
-    <div class="all-brands-synthesis">${synthesisHtml}</div>`;
+    <div class="all-brands-synthesis">${formatAnswer(data.synthesis)}</div>
+    <div class="brand-details">`;
 
-  // Per-brand detail accordion
-  html += `<div class="brand-details">`;
   Object.entries(BRANDS).forEach(([key, brand]) => {
     const result = data.brands[key];
     if (!result) return;
@@ -479,7 +343,6 @@ function addAllBrandsMessage(data) {
           <polyline points="14 2 14 8 20 8"></polyline>
         </svg>Pagina ${p}</button>`
     ).join('');
-
     html += `
       <details class="brand-detail-item">
         <summary class="brand-detail-summary" style="--brand-color:${brand.color}">
@@ -494,28 +357,10 @@ function addAllBrandsMessage(data) {
       </details>`;
   });
 
-  html += `</div><div class="all-brands-footer"><div class="action-btns action-btns-bottom"><button class="action-icon-btn action-icon-btn-dark" id="${exportId}-bottom" title="Exporteer naar PDF"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg></button><button class="action-icon-btn action-icon-btn-dark" id="${exportId}-mail-bottom" title="Stuur als e-mail"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,12 2,6"></polyline></svg></button></div></div></div>`;
+  html += `</div></div>`;
   div.innerHTML = html;
   chat.appendChild(div);
-
-  // Capture query from preceding user message
-  const userMessages = chat.querySelectorAll('.message.user .bubble');
-  const lastQuery = userMessages.length ? userMessages[userMessages.length - 1].textContent : '';
-
-  // Wire header buttons
-  const exportBtn = document.getElementById(exportId);
-  if (exportBtn) exportBtn.onclick = () => exportAllBrandsToPdf(lastQuery, synthesisHtml, data.brands);
-  const mailBtn = document.getElementById(exportId + '-mail');
-  if (mailBtn) mailBtn.onclick = () => composeAllBrandsEmail(lastQuery, data.brands);
-
-  // Wire bottom buttons
-  const exportBtnB = document.getElementById(exportId + '-bottom');
-  if (exportBtnB) exportBtnB.onclick = () => exportAllBrandsToPdf(lastQuery, synthesisHtml, data.brands);
-  const mailBtnB = document.getElementById(exportId + '-mail-bottom');
-  if (mailBtnB) mailBtnB.onclick = () => composeAllBrandsEmail(lastQuery, data.brands);
-
-  // Scroll to TOP of this answer so user can start reading immediately
-  div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
 }
 
 // ── Send message ───────────────────────────────────────────
@@ -523,38 +368,31 @@ async function sendMessage() {
   if (!activeBrand) return;
   const q = textarea.value.trim();
   if (!q) return;
-
   textarea.value = ''; textarea.style.height = 'auto';
   document.getElementById('send-btn').disabled = true;
   const brandAtSend = activeBrand;
-
   addMessage('user', q.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'));
   showTyping();
-
   try {
     if (brandAtSend === '__all__') {
       const res  = await fetch('/ask-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: q }),
       });
       const data = await res.json();
       removeTyping();
-      if (data.error) {
-        addMessage('ai', `<em>${data.error}</em>`);
-      } else {
-        addAllBrandsMessage(data);
-      }
+      if (data.error) addMessage('ai', `<em>${data.error}</em>`);
+      else addAllBrandsMessage(data);
     } else {
       const res  = await fetch('/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: q, brand: brandAtSend }),
       });
       const data = await res.json();
       removeTyping();
-      const pages = data.pages && data.pages.length ? data.pages : extractPages(data.answer);
-      addMessage('ai', formatAnswer(data.answer), brandAtSend, pages);
+      const pages   = data.pages && data.pages.length ? data.pages : extractPages(data.answer);
+      const phrases = data.key_phrases || [];
+      addMessage('ai', formatAnswer(data.answer), brandAtSend, pages, phrases);
     }
   } catch (err) {
     removeTyping();
