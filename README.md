@@ -51,7 +51,30 @@ static/ - JS, CSS, brand PDFs
 - Python 3.11
 - An OpenAI API key
 - A Pinecone API key + project
+The app requires two API keys: (OPENAI_API_KEY, PINECONE_API_KEY=). These are currently managed by Guido Hendrix and are stored by him. 
 
+### 2. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Index the brand PDFs (one-time, or whenever a PDF changes)
+
+Place each brand's PDF under `static/pdfs/` (paths must match `brands.py`), then run:
+
+```bash
+python ingest.py
+```
+
+This creates the `hypotheek-docs` Pinecone index (if it doesn't exist yet) and embeds
+every brand's PDF, tagging each chunk with its brand.
+
+### 4. Run the app locally
+
+```bash
+python app.py
+```
 
 
 
