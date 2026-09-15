@@ -44,39 +44,21 @@ templates/ - HTML template(s) for the chat UI
 
 static/ - JS, CSS, brand PDFs
 
-
-## Setup
-
-### 1. Requirements
+## Requirements
 - Python 3.11
 - An OpenAI API key
 - A Pinecone API key + project
 The app requires two API keys: (OPENAI_API_KEY, PINECONE_API_KEY=). These are currently managed by Guido Hendrix and are stored by him. 
 
-### 2. Install dependencies
+## Deployment
 
-```bash
-pip install -r requirements.txt
-```
+**Current:** This app runs on [Render](https://render.com) (add link)
 
-### 3. Index the brand PDFs (one-time, or whenever a PDF changes)
+Current access to the Render dashboard and API keys is held by Guido Hendrix. 
 
-Place each brand's PDF under `static/pdfs/` (paths must match `brands.py`), then run:
+**Planned:** 
 
-```bash
-python ingest.py
-```
-
-This creates the `hypotheek-docs` Pinecone index (if it doesn't exist yet) and embeds
-every brand's PDF, tagging each chunk with its brand.
-
-### 4. Run the app locally
-
-```bash
-python app.py
-```
-
-
+xxxx
 
 
 
