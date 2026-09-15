@@ -23,17 +23,25 @@ compare answers across all four brands at once.
 | PDF ingestion | `PyPDFLoader` + `RecursiveCharacterTextSplitter` |
 
 https://www.langchain.com/
+
 https://flask.palletsprojects.com/en/stable/
+
 https://www.pinecone.io/
 
 ## Project Structure
 
 app.py - Flask app, agent orchestration, API routes
+
 ingest.py - One-off script to embed brand PDFs into Pinecone
+
 brands.py - Brand config: names, colors, PDF paths
+
 requirements.txt - Python dependencies
+
 Dockerfile - Container build (gunicorn entrypoint)
+
 templates/ - HTML template(s) for the chat UI
+
 static/ - JS, CSS, brand PDFs
 
 
