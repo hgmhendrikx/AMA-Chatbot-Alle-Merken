@@ -44,21 +44,62 @@ templates/ - HTML template(s) for the chat UI
 
 static/ - JS, CSS, brand PDFs
 
-## Requirements
+
+## Setup
+
+### Requirements
 - Python 3.11
 - An OpenAI API key
-- A Pinecone API key + project
-The app requires two API keys: (OPENAI_API_KEY, PINECONE_API_KEY=). These are currently managed by Guido Hendrix and are stored by him. 
+- A Pinecone API key
+
+API keys are currently managed by Guido Hendrix. 
+
+### Pinecone
+
+**Note:** the existing `hypotheek-docs` Pinecone index is already populated with all
+four brands' PDFs — you do **not** need to run this step for normal local development
+or testing. Only run it if:
+- you're connecting to a **new/empty Pinecone project** (different API key than the
+  one currently in use), or
+- a brand's **PDF has changed** (updated policy) and needs to be re-embedded, or
+- a **new brand** is being added (see "Adding a New Brand" below)
+
+If one of those applies, place the brand's PDF under `static/pdfs/` (path must match
+`brands.py`), then run:
+
+```bash
+python ingest.py
+```
+
+This creates the `hypotheek-docs` Pinecone index (if it doesn't already exist) and
+embeds every brand's PDF, tagging each chunk with its brand.
+
 
 ## Deployment
 
-**Current:** This app runs on [Render](https://render.com) (add link)
+**Current:** This app runs on [Render](https://render.com) as a Docker-based web
+service, built directly from this repo's `Dockerfile`
+Current access to the Render dashboard and API keys is held by Guido Hendrikx.
 
-Current access to the Render dashboard and API keys is held by Guido Hendrix. 
+### Development plan 
 
-**Planned:** 
+To be updated... 
 
-xxxx
+### Migration plan and further development
+
+To be updated... 
+
+## Adding a New Brand
+
+1. Add the PDF to `static/pdfs/`.
+2. Add an entry to `BRANDS` in `brands.py` (name, colors, icon, `pdf_url`).
+3. Re-run `python ingest.py` to embed the new PDF.
+4. Restart the app. 
+
+## Documentation
+
+For a deeper dive into the RAG pipeline, the ReAct agent loop, the multi-brand
+comparison flow, and known production risks, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
 
 
 
