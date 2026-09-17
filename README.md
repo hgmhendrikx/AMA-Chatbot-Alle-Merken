@@ -11,7 +11,7 @@ compare answers across all four brands at once.
 - Users can also ask one question across all brands at once. Each brand answers
   independently, and the results are synthesized into a comparison
 
-![Pipeline](documentation/pipeline.png)
+![Pipeline](documentation/_ask.png)
 
 ## Tech Stack
 
