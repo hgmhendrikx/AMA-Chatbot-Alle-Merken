@@ -11,6 +11,8 @@ compare answers across all four brands at once.
 - Users can also ask one question across all brands at once. Each brand answers
   independently, and the results are synthesized into a comparison.
 
+ ![Pipeline](C:\Users\mstan\OneDrive\Dokumenty\GitHub\AMA-Chatbot-Alle-Merken\documentation\_ask.pdf)
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -100,8 +102,3 @@ To be updated...
 
 For a deeper dive into the RAG pipeline, the ReAct agent loop, the multi-brand
 comparison flow, and known production risks, see [`ARCHITECTURE.md`](./ARCHITECTURE.md).
-
-
-
-
-    
