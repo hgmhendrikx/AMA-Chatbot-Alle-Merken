@@ -11,7 +11,7 @@ compare answers across all four brands at once.
 - Users can also ask one question across all brands at once. Each brand answers
   independently, and the results are synthesized into a comparison.
 
- ![Pipeline](C:\Users\mstan\OneDrive\Dokumenty\GitHub\AMA-Chatbot-Alle-Merken\documentation\_ask.pdf)
+ ![Pipeline](documentation/ask_pipeline.png)
 
 ## Tech Stack
 
