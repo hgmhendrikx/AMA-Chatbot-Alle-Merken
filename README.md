@@ -9,9 +9,9 @@ compare answers across all four brands at once.
 - The app retrieves relevant passages from that brand's policy PDF and answers with
   citations to the exact page numbers used.
 - Users can also ask one question across all brands at once. Each brand answers
-  independently, and the results are synthesized into a comparison.
+  independently, and the results are synthesized into a comparison
 
-![Pipeline](documentation/_ask.pdf)
+![Pipeline](documentation/pipeline.png)
 
 ## Tech Stack
 
