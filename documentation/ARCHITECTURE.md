@@ -4,7 +4,7 @@ A Flask-based Q&A chatbot that lets users ask questions about the mortgage accep
 policies ("acceptatiegidsen") of four Dutch mortgage brands, either one at a time or
 compared across all brands at once.
 
-![System Overview](documentation/system-overview.png)
+![System Overview](system-overview.png)
 
 ## 1. Tech Stack
 
@@ -141,7 +141,7 @@ metadata. This is elegant but fragile — see §7.
 | `/ask` | POST | Single-brand Q&A. Body: `{query, brand}` → `{answer, pages}` |
 | `/ask-all` | POST | Multi-brand comparison. Body: `{query}` → `{synthesis, brands}` |
 
-![Ask Flow](_ask.png)
+![Ask-all fan-out to Pinecone](brand isolation.pdf)
 
 
 ## 6. End-to-End Flow Diagrams
