@@ -139,7 +139,7 @@ metadata. This is elegant but fragile — see §7.
 | `/ask` | POST | Single-brand Q&A. Body: `{query, brand}` → `{answer, pages}` |
 | `/ask-all` | POST | Multi-brand comparison. Body: `{query}` → `{synthesis, brands}` |
 
-![Ask vs Ask-All flow](documentation/pipeline.png)
+![Ask vs Ask-All flow](documentation/_ask.png)
 
 
 ## 6. End-to-End Flow Diagrams
