@@ -4,7 +4,7 @@ A Flask-based Q&A chatbot that lets users ask questions about the mortgage accep
 policies ("acceptatiegidsen") of four Dutch mortgage brands, either one at a time or
 compared across all brands at once.
 
-![System Overview](system-overview.png)
+![System Overview](arch.png)
 
 ## 1. Tech Stack
 
