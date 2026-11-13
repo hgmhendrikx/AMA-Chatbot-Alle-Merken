@@ -1,4 +1,4 @@
 {
-  "apiUrl": "https://<PROJECT_REF>.supabase.co/functions/v1/ask",
+  "apiUrl": "https://jgfreefnhngegqybxstc.supabase.co/functions/v1/ask",
   "voiceTokenUrl": ""
 }
