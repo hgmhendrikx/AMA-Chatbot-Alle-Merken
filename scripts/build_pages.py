@@ -8,8 +8,10 @@ van de frontend is:
   static/               → _site/static/ (zonder sourcemaps en PDF.js-voorbeeld)
 
 Gebruik:  python scripts/build_pages.py [uitvoermap]
+          PAGES_CONFIG=pad/naar/config.json python scripts/build_pages.py   (andere config, bv. in tests)
 """
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -22,7 +24,8 @@ OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "_site"
 sys.path.insert(0, str(ROOT))
 from brands import BRANDS  # noqa: E402
 
-config = json.loads((ROOT / "pages.config.json").read_text(encoding="utf-8"))
+config_path = Path(os.environ.get("PAGES_CONFIG", ROOT / "pages.config.json"))
+config = json.loads(config_path.read_text(encoding="utf-8"))
 api_url = (config.get("apiUrl") or "").strip()
 if not api_url or "<PROJECT_REF>" in api_url:
     sys.exit("pages.config.json: vul 'apiUrl' in met de URL van je Supabase-functie 'ask'.")

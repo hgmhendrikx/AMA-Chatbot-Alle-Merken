@@ -4,3 +4,7 @@ ingest.py
 __pycache__/
 *.pyc
 venv/
+
+# Pages-build en testbestanden
+_site/
+_test_index.html
