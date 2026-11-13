@@ -1,0 +1,33 @@
+{
+  "tool_config": {
+    "type": "webhook",
+    "name": "zoek_acceptatiebeleid",
+    "description": "Zoekt relevante passages (met paginanummers) in de acceptatiegids van één geldverstrekker, of van alle vier tegelijk. Gebruik dit voor ELKE inhoudelijke vraag over acceptatiebeleid.",
+    "response_timeout_secs": 20,
+    "force_pre_tool_speech": true,
+    "disable_interruptions": false,
+    "api_schema": {
+      "url": "https://<PROJECT_REF>.supabase.co/functions/v1/zoek-acceptatiebeleid",
+      "method": "POST",
+      "request_headers": {
+        "x-tool-secret": { "secret_id": "<SECRET_ID_VAN_VOICE_TOOL_SECRET>" }
+      },
+      "request_body_schema": {
+        "type": "object",
+        "description": "Zoekopdracht in de acceptatiegids",
+        "required": ["merk", "vraag"],
+        "properties": {
+          "merk": {
+            "type": "string",
+            "enum": ["cbleef", "attens", "syntrus", "cbwoningverhuur", "alle"],
+            "description": "Merk-code van de geldverstrekker: cbleef = CB - Leef, attens = Attens, syntrus = Syntrus Achmea, cbwoningverhuur = CB - Woningverhuur, alle = alle vier vergelijken."
+          },
+          "vraag": {
+            "type": "string",
+            "description": "Zelfstandige zoekvraag in het Nederlands met de vakterm erin, bv. 'maximale LTV bij aankoop bestaande bouw' of 'eisen aan inkomen uit flexibel dienstverband'."
+          }
+        }
+      }
+    }
+  }
+}

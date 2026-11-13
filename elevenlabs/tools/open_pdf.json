@@ -1,0 +1,28 @@
+{
+  "tool_config": {
+    "type": "client",
+    "name": "open_pdf",
+    "description": "Opent in het scherm van de adviseur de acceptatiegids van een merk op de juiste pagina en markeert een zinsnede geel.",
+    "expects_response": false,
+    "response_timeout_secs": 5,
+    "parameters": {
+      "type": "object",
+      "required": ["merk", "pdf_pagina"],
+      "properties": {
+        "merk": {
+          "type": "string",
+          "enum": ["cbleef", "attens", "syntrus", "cbwoningverhuur"],
+          "description": "Merk-code van de gids die geopend moet worden."
+        },
+        "pdf_pagina": {
+          "type": "number",
+          "description": "Waarde van het veld pdf_pagina uit het zoekresultaat."
+        },
+        "zinsnede": {
+          "type": "string",
+          "description": "Korte letterlijke zin (8-15 woorden) uit de passage die gemarkeerd moet worden."
+        }
+      }
+    }
+  }
+}

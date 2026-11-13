@@ -1,5 +1,6 @@
 /* Hypotheek Acceptatie Assistent — main.js
-   BRANDS is injected by the template as a global variable. */
+   BRANDS en APP_CONFIG worden door de template als globale variabelen gezet
+   (Flask: app.py; GitHub Pages: scripts/build_pages.py). */
 
 let activeBrand    = null;
 let activePdfBrand = null;  // tracks which brand PDF is shown (relevant in all-brands mode)
@@ -158,8 +159,9 @@ function loadPdf(page, brandKey) {
 
   activePdfBrand = key;
   // Use PDF.js viewer — gives full control over link behaviour (links open in new tab)
-  const encoded = encodeURIComponent(window.location.origin + brand.pdf_url);
-  const viewerUrl = `/static/pdfjs/web/viewer.html?file=${encoded}#page=${page || 1}`;
+  // Relatieve paden: werkt zowel op Render (/) als op GitHub Pages (/<repo>/)
+  const encoded = encodeURIComponent(new URL(brand.pdf_url, window.location.href).href);
+  const viewerUrl = `static/pdfjs/web/viewer.html?file=${encoded}#page=${page || 1}`;
   const wrap = document.getElementById('pdf-frame-wrap');
   wrap.innerHTML = `<iframe src="${viewerUrl}" title="${brand.name} Acceptatiegids"></iframe>`;
   document.getElementById('pdf-panel-title').textContent = brand.name + ' — Acceptatiegids';
@@ -518,6 +520,35 @@ function addAllBrandsMessage(data) {
   div.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
+// ── API ────────────────────────────────────────────────────
+// APP_CONFIG.apiUrl gezet (GitHub Pages) → Supabase Edge Function 'ask'.
+// Niet gezet (Render/Flask) → de oude endpoints /ask en /ask-all.
+const appConfig = window.APP_CONFIG || {};
+
+function getAccessCode() { try { return localStorage.getItem('accessCode') || ''; } catch { return ''; } }
+function setAccessCode(c) { try { localStorage.setItem('accessCode', c); } catch { /* geen opslag */ } }
+
+async function callApi(query, brand, retry = true) {
+  let url, body;
+  if (appConfig.apiUrl) {
+    url  = appConfig.apiUrl;
+    body = { query, brand };
+  } else {
+    url  = brand === '__all__' ? '/ask-all' : '/ask';
+    body = brand === '__all__' ? { query } : { query, brand };
+  }
+  const headers = { 'Content-Type': 'application/json' };
+  const code = getAccessCode();
+  if (code) headers['x-access-code'] = code;
+
+  const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (res.status === 401 && retry) {
+    const entered = window.prompt('Toegangscode voor de Hypotheek Assistent:');
+    if (entered) { setAccessCode(entered.trim()); return callApi(query, brand, false); }
+  }
+  return res.json();
+}
+
 // ── Send message ───────────────────────────────────────────
 async function sendMessage() {
   if (!activeBrand) return;
@@ -533,12 +564,7 @@ async function sendMessage() {
 
   try {
     if (brandAtSend === '__all__') {
-      const res  = await fetch('/ask-all', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
-      });
-      const data = await res.json();
+      const data = await callApi(q, '__all__');
       removeTyping();
       if (data.error) {
         addMessage('ai', `<em>${data.error}</em>`);
@@ -546,12 +572,7 @@ async function sendMessage() {
         addAllBrandsMessage(data);
       }
     } else {
-      const res  = await fetch('/ask', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q, brand: brandAtSend }),
-      });
-      const data = await res.json();
+      const data = await callApi(q, brandAtSend);
       removeTyping();
       const pages = data.pages && data.pages.length ? data.pages : extractPages(data.answer);
       addMessage('ai', formatAnswer(data.answer), brandAtSend, pages);

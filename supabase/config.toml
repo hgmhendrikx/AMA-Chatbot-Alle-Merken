@@ -1,0 +1,12 @@
+# Alleen de instellingen voor de voice-functies.
+# Beide functies regelen hun eigen beveiliging (x-tool-secret resp. Origin-check),
+# dus de standaard Supabase-JWT-controle staat uit.
+
+[functions.zoek-acceptatiebeleid]
+verify_jwt = false
+
+[functions.elevenlabs-token]
+verify_jwt = false
+
+[functions.ask]
+verify_jwt = false

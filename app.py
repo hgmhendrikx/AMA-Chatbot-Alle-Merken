@@ -64,7 +64,11 @@ def index():
         "icon":    v["icon"],
         "pdf_url": v["pdf_url"],
     } for k, v in BRANDS.items()})
-    return render_template("index.html", brands_json=brands_json)
+    app_config = json.dumps({
+        "apiUrl":        None,  # Flask gebruikt zijn eigen /ask en /ask-all
+        "voiceTokenUrl": os.environ.get("VOICE_TOKEN_URL"),
+    })
+    return render_template("index.html", brands_json=brands_json, app_config=app_config)
 
 
 @app.route("/ask", methods=["POST"])

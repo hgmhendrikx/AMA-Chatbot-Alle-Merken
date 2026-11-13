@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/voice.css') }}">
 </head>
 <body>
 
@@ -47,8 +48,22 @@
   </div>
 
   <div class="input-bar">
+    <!-- Spraakmodus: zichtbaar tijdens een gesprek -->
+    <div class="voice-bar" id="voice-bar" data-state="idle" aria-live="polite">
+      <span class="voice-dot"></span>
+      <span class="voice-status" id="voice-status"></span>
+      <span class="voice-caption" id="voice-caption"></span>
+      <button class="voice-stop" id="voice-stop" type="button">Stop</button>
+    </div>
     <div class="input-inner">
       <textarea id="query" placeholder="Selecteer eerst een geldverstrekker..." rows="1" disabled></textarea>
+      <button type="button" class="voice-btn" id="voice-btn" title="Start spraakgesprek" aria-label="Spraakgesprek">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="2" width="6" height="12" rx="3"></rect>
+          <path d="M5 10v1a7 7 0 0 0 14 0v-1"></path>
+          <line x1="12" y1="18" x2="12" y2="22"></line>
+        </svg>
+      </button>
       <button type="submit" id="send-btn" onclick="sendMessage()" disabled>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -84,7 +99,11 @@
 <!-- Inject brand data for JS, then load app script -->
 <script>
   const BRANDS = {{ brands_json | safe }};
+  // apiUrl: leeg = Flask-endpoints; voiceTokenUrl: leeg = geen microfoonknop
+  window.APP_CONFIG = {{ app_config | safe }};
 </script>
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+<script type="module" src="{{ url_for('static', filename='js/voice.js') }}"></script>
 </body>
 </html>

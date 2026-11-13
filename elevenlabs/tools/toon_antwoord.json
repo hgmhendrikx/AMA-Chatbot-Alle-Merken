@@ -1,0 +1,24 @@
+{
+  "tool_config": {
+    "type": "client",
+    "name": "toon_antwoord",
+    "description": "Zet de uitgeschreven versie van je antwoord in het chatvenster, zodat de adviseur het kan nalezen, kopiëren en op paginaverwijzingen kan klikken.",
+    "expects_response": false,
+    "response_timeout_secs": 5,
+    "parameters": {
+      "type": "object",
+      "required": ["merk", "tekst"],
+      "properties": {
+        "merk": {
+          "type": "string",
+          "enum": ["cbleef", "attens", "syntrus", "cbwoningverhuur", "alle"],
+          "description": "Merk waar het antwoord over gaat, of 'alle' bij een vergelijking."
+        },
+        "tekst": {
+          "type": "string",
+          "description": "Het antwoord in markdown. Paginaverwijzingen als '(pagina X)'. Bij 'alle' mag er een tabel in."
+        }
+      }
+    }
+  }
+}
