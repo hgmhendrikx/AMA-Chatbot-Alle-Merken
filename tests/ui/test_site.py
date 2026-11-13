@@ -100,6 +100,13 @@ def test_pages(browser, tmp):
     pg.wait_for_timeout(500)
     check(pg.locator(".brand-item").count() == len(BRANDS) + 1, "zijbalk met alle merken + 'Alle merken'")
     check(not pg.is_visible("#voice-btn"), "microfoon verborgen zonder voiceTokenUrl")
+    check(pg.is_visible(".welcome-bot") and "Hypo" in pg.inner_text("#welcome h2"), "welkomstscherm met Hypo")
+    check(not pg.is_visible("#welcome-talk"), "praatknop verborgen zonder voiceTokenUrl")
+    check(pg.locator(".welcome-chip").count() == len(BRANDS) + 1, "snelkeuze: alle merken + vergelijken")
+    pg.click('.welcome-chip[data-key="cbleef"]')
+    check(pg.inner_text("#header-title") == BRANDS["cbleef"]["name"]
+          and "active" in pg.get_attribute('.welcome-chip[data-key="cbleef"]', "class")
+          and pg.is_enabled("#query"), "snelkeuze selecteert merk en opent invoer")
 
     pg.click('.brand-item[data-key="attens"]')
     pg.fill("#query", "Wat is de max LTV?")
@@ -163,6 +170,19 @@ def test_flask_and_voice(browser):
 
         pg.goto("http://127.0.0.1:8765/_test_index.html")
         pg.wait_for_timeout(500)
+        check(pg.is_visible("#welcome-talk"), "praatknop op welkomstscherm zichtbaar met voiceTokenUrl")
+
+        # Praatknop op het welkomstscherm start direct een gesprek, ook zonder gekozen merk
+        pg.click("#welcome-talk")
+        pg.wait_for_function("window.__opts")
+        pg.wait_for_timeout(100)
+        check(pg.evaluate("__opts.dynamicVariables.actief_merk") == "geen"
+              and pg.evaluate("document.body.dataset.voice") == "listening"
+              and "luister" in pg.inner_text("#welcome-talk-label"), "praatknop: gesprek zonder merk, Hypo luistert")
+        pg.click("#welcome-talk")
+        pg.wait_for_timeout(100)
+        check(pg.evaluate("document.body.dataset.voice") == "idle", "praatknop stopt het gesprek weer")
+        pg.evaluate("delete window.__opts; delete window.__ended")
 
         # Flask-modus: zonder apiUrl gaat de chat naar /ask
         pg.click('.brand-item[data-key="cbleef"]')

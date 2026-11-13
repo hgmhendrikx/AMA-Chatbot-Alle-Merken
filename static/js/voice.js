@@ -21,8 +21,14 @@ const stopBtn = document.getElementById('voice-stop');
 let conversation = null;
 let toolDriven   = false;   // true als de agent zelf het merk wisselt (geen contextupdate terugsturen)
 
+const welcomeTalk  = document.getElementById('welcome-talk');
+const welcomeLabel = document.getElementById('welcome-talk-label');
+
 if (!cfg.tokenUrl) {
   micBtn.style.display = 'none';
+  if (welcomeTalk) welcomeTalk.style.display = 'none';
+  const or = document.getElementById('welcome-or');
+  if (or) or.textContent = 'Kies een geldverstrekker om te beginnen';
   console.info('[voice] Geen voiceTokenUrl in APP_CONFIG — spraakmodus uitgeschakeld.');
 }
 
@@ -48,6 +54,15 @@ function setUi(state, text) {
   };
   statusEl.textContent = labels[state] ?? '';
   if (text !== undefined) captionEl.textContent = text;
+
+  // Welkomstscherm: Hypo luistert/praat mee, de grote knop wordt een stopknop
+  document.body.dataset.voice = state;
+  if (welcomeLabel) {
+    welcomeLabel.textContent = {
+      idle: 'Praat met me', connecting: 'Even verbinden…', listening: 'Ik luister… (tik om te stoppen)',
+      speaking: 'Ik praat… (tik om te stoppen)', error: 'Probeer het opnieuw',
+    }[state] ?? 'Praat met me';
+  }
 }
 
 // ── Token ophalen (met optionele toegangscode) ─────────────
@@ -206,6 +221,7 @@ micBtn.addEventListener('click', () => {
   else stopVoice();
 });
 stopBtn.addEventListener('click', stopVoice);
+if (welcomeTalk) welcomeTalk.addEventListener('click', () => micBtn.click());
 window.addEventListener('beforeunload', () => { if (conversation) conversation.endSession(); });
 
 setUi('idle', '');

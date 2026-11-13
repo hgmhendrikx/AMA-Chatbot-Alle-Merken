@@ -22,6 +22,9 @@ function showAllBrandsPdfPicker() {
     </div>`;
 }
 
+// Mobiel: zijbalk start ingeklapt, de welkomstchips nemen de merkkeuze over
+if (window.innerWidth <= 768) document.getElementById('sidebar').classList.add('collapsed');
+
 // ── Build sidebar ──────────────────────────────────────────
 const brandList = document.getElementById('brand-list');
 
@@ -53,11 +56,27 @@ Object.entries(BRANDS).forEach(([key, brand]) => {
   brandList.appendChild(el);
 });
 
+// ── Welkomstscherm: snelkeuze voor een geldverstrekker ─────
+const welcomeBrands = document.getElementById('welcome-brands');
+if (welcomeBrands) {
+  const chip = (key, icon, name, onClick) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'welcome-chip';
+    b.dataset.key = key;
+    b.innerHTML = `<span>${icon}</span><span>${name}</span>`;
+    b.onclick = onClick;
+    welcomeBrands.appendChild(b);
+  };
+  Object.entries(BRANDS).forEach(([key, brand]) => chip(key, brand.icon, brand.name, () => selectBrand(key)));
+  chip('__all__', '🔍', 'Alle merken vergelijken', () => selectAllBrands());
+}
+
 // ── Select all brands ──────────────────────────────────────
 function selectAllBrands() {
   activeBrand = '__all__';
 
-  document.querySelectorAll('.brand-item').forEach(el => {
+  document.querySelectorAll('.brand-item, .welcome-chip').forEach(el => {
     el.classList.toggle('active', el.dataset.key === '__all__');
   });
 
@@ -95,7 +114,7 @@ function selectBrand(key) {
   activeBrand = key;
   const brand = BRANDS[key];
 
-  document.querySelectorAll('.brand-item').forEach(el => {
+  document.querySelectorAll('.brand-item, .welcome-chip').forEach(el => {
     const b = BRANDS[el.dataset.key];
     if (b) el.style.setProperty('--brand-accent', b.accent);
     el.classList.toggle('active', el.dataset.key === key);
