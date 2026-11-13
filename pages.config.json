@@ -1,4 +1,4 @@
 {
   "apiUrl": "https://jgfreefnhngegqybxstc.supabase.co/functions/v1/ask",
-  "voiceTokenUrl": ""
+  "voiceTokenUrl": "https://jgfreefnhngegqybxstc.supabase.co/functions/v1/elevenlabs-token"
 }
